@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Live number ticker</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+
+    <script>
+        $(function () {
+            var socket = io();
+
+            socket.on('numbers-update', function(randNum) {
+                $('#displaynum').text(randNum);
+            });
+        });
+    </script>
+
+  </head>
+  <body>
+    Server sent number: <span id="displaynum">no data yet</span>
+  </body>
+</html>
