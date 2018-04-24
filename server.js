@@ -33,20 +33,39 @@ io.on('connection', function(socket) {
     console.log('Socket connection established with ID ' + socket.id);
     console.log(server.getNumConnected() + ' already connected');
 
-    // *************** Register the socket listening events ***********
-    socket.on('disconnect', function() {
-        console.log('Socket disconnection with ID ' + socket.id);
-    });
-
-    socket.on("ask-connect-server", function(data) {
-        console.log("ask-connect-server from socket " + socket.id + " with data " + data);
-        
-    });
-
-    // Send id to client
-    socket.emit("client-id", socket.id);
+    registerSocketEventListeners(socket);
 });
 
 server.getNumConnected = function() {
-    return Object.keys(gs.players).length;
+    return Object.keys(gs.socketMap).length;
+    //return Object.keys(gs.players).length;
 };
+
+function registerSocketEventListeners(socket) {
+    // =============== Register the socket listening events =========
+    socket.on('disconnect', function() {
+        console.log('Socket disconnection with ID ' + socket.id);
+        // Remove the connection from the GameServer
+        delete gs.socketMap[socket.id];
+    });
+
+    socket.on("ask-client-id", function(clientId) {
+        console.log("client asked for client id. Param: " + clientId);
+        let playerId = clientId;
+        if (!playerId) {
+            playerId = gs.generatePlayerId();
+        }
+
+        // Save the connection
+        gs.socketMap[playerId] = socket;
+    
+        // Send id to client
+        socket.emit("client-id", playerId);
+    });
+
+    socket.on("ask-reconnect", function(clientId) {
+        console.log("client asked for reconnect with id " + clientId);
+    });
+
+    // ================================================================
+}

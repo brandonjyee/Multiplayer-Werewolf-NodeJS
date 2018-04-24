@@ -1,15 +1,23 @@
 <!doctype html>
 <html>
   <head>
-    <title>Live number ticker</title>
+    <title>Ultimate Werewolf</title>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 
     <script>
         $(function () { // Ensures script only called when DOM is ready
-            var socket = io();
-            var clientId = "";
+
+            // Check if client support Web Storage. Need it to store data
+            if (typeof(Storage) === "undefined") {
+              console.log("Error: No Web Storage support!");
+            }
+            // Create web socket connection
+            let socket = io();
+
+            // Check existing session storage for data. 
+            let clientId = sessionStorage.getItem("client-id");
 
             socket.on('numbers-update', function(randNum) {
               $('#displaynum').text(randNum);
@@ -17,7 +25,10 @@
 
             socket.on("client-id", function(id) {
               clientId = id;
-              $("#client-id").text(id);
+              // Store it in session storage
+              sessionStorage.setItem("client-id", clientId);
+              // Display it
+              $("#client-id").text(clientId);
             });
 
             socket.on("server-msg", function(serverData) {
@@ -27,7 +38,7 @@
 
             $("#connect-to-server").click( function () {
               console.log("connect to server button clicked.");
-              socket.emit("ask-connect-server", "my client data");
+              socket.emit("ask-client-id", clientId);
             });
         });
     </script>
