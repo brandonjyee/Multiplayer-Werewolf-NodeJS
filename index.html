@@ -7,17 +7,46 @@
     <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 
     <script>
-        $(function () {
+        $(function () { // Ensures script only called when DOM is ready
             var socket = io();
+            var clientId = "";
 
             socket.on('numbers-update', function(randNum) {
-                $('#displaynum').text(randNum);
+              $('#displaynum').text(randNum);
+            });
+
+            socket.on("client-id", function(id) {
+              clientId = id;
+              $("#client-id").text(id);
+            });
+
+            socket.on("server-msg", function(serverData) {
+              let currentTxt = $("#server-msgs").text;
+              $("#server-msgs").text(serverData + "<br>" + currentText);
+            });
+
+            $("#connect-to-server").click( function () {
+              console.log("connect to server button clicked.");
+              socket.emit("ask-connect-server", "my client data");
             });
         });
     </script>
-
+    <h1>Welcome to Ultimate Werewolf</h1>
   </head>
   <body>
+    <p>
+      Client ID: <span id="client-id"></span>
+    </p>
+    <p>
     Server sent number: <span id="displaynum">no data yet</span>
+    </p>
+    <p>
+      <input type="text" placeholder="Enter name"></input><br>
+      <button id="connect-to-server" type="button">Connect to Server</button>
+    </p>
+    <p>
+      Server Messages:
+      <span id="#server-msgs"></span>
+    </p>
   </body>
 </html>
