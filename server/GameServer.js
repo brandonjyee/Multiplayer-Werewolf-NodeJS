@@ -1,10 +1,15 @@
+var Player = require('./Player.js').Player;
+var GameSession = require('./GameSession.js').GameSession;
+
 
 var GameServer = {
     lastPlayerID: 0,
     // Map of socket id's to the player id's of the associated players
     socketMap: {},
     // Map of all connected players, fetchable by id
-    players: {}
+    players: {},
+    // Game sessions, mapped by gameId
+    games: {}
 }
 
 //A few helper functions
@@ -47,21 +52,71 @@ GameServer.getPlayer = function(socketID) {
     return GameServer.players[GameServer.getPlayerID(socketID)];
 };
 
+GameServer.addPlayer = function(playerId) {
+    let newPlayer = new Player();
+    newPlayer.id = playerId;
+    GameServer.players[playerId] = newPlayer;
+}
+
 // remove a socket id/player id mapping
 GameServer.deleteSocketID = function(socketID) { 
     delete GameServer.socketMap[socketID];
 };
 
+// Returns the game ID
+GameServer.joinOpenGame = function(playerId) {
+    // Maybe better idea is to add player to a queue and server loop will 
+    // assign ppl in the queue to open games
+    let player = GameServer.players[playerId];
+    let retGameId = "";
+    for (let gameId in GameServer.games) {
+        let gameSession = GameServer.games[gameId];
+        // If game is looking for more players, add this player to the game
+        if (gameSession.getNumPlayers() < gameSession.maxPlayers) {
+            GameServer.addPlayerToGame(player, gameSession);
 
+            // Return this game session's ID
+            retGameId = gameSession.id;
+        }
+    }
+    // If haven't found an existing game session, create a new one
+    if (!retGameId) {
+        // Loop until can generate a non-existing gameId
+        let found = false;
+        while (!found) {
+            gameId = GameServer.uuidv4();
+            // Create a new game session
+            if (!GameServer.games[gameId]) {
+                let newGameSession = new GameSession();
+                newGameSession.id = gameId;
+                // Update the GameSession and Player
+                GameServer.addPlayerToGame(player, newGameSession);
+                // Update the GameServer
+                GameServer.games[gameId] = newGameSession;
+                found = true;
+            }
+        }
+    }
+    return gameId;
+}
 
-// GameServer.setLoops = function(){ // Sets up the server update loop, and the regenration loop
-//     setInterval(GameServer.update,GameServer.updateRate);
-//     setInterval(GameServer.regenerate,GameServer.regenRate);
-// };
+GameServer.addPlayerToGame = function(player, gameSession) {
+    // Update GameSession
+    gameSession.players[player.id] = player;
+    // Update Player
+    player.gameSession = gameSession;
+}
 
+GameServer.getNumGames = function() {
+    return Object.keys(GameServer.games).length;
+}
 
+GameServer.getNumPlayers = function() {
+    return Object.keys(GameServer.players).length;
+}
 
-GameServer.checkSocketID = function(id) { // check if no other player is using same socket ID
+// check if no other player is using same socket ID
+GameServer.checkSocketID = function(id) { 
     return (GameServer.getPlayerID(id) === undefined);
 };
 

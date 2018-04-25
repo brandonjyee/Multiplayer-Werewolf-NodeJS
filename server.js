@@ -4,9 +4,16 @@ var server = require('http').Server(app);
 var io = require('socket.io').listen(server);
 var gs = require('./server/GameServer.js').GameServer;
 
+//app.use('/server', express.static(__dirname + '/server'));
+
 // The default route will return the page containing the client code
 app.get('/', function(req, res) {
-    res.sendFile(__dirname+'/index.html');
+    res.sendFile(__dirname + '/index.html');
+});
+
+// The admin page
+app.get('/admin', function(req, res) {
+    res.sendFile(__dirname + '/admin.html');
 });
 
 // The client accesses the http server to get the web page that contains the client code
@@ -20,14 +27,34 @@ server.listen(8081, function() {
     server.clientUpdateRate = 1000 / packetsPerSecond; 
     
     // This represents the main server loop that executes at regular intervals
-    let gameLoopFn = function () {
+    /*let gameLoopFn = function () {
         let randNum = Math.floor(Math.random() * 1000);
         io.emit('numbers-update', randNum);
-    };
+    };*/
 
     // Set the server processing interval
     setInterval(gameLoopFn, server.clientUpdateRate);
+    // Send server stats 
+    setInterval(serverStatsFn, timesPerSecToMs(5));
 });
+
+function timesPerSecToMs(num) {
+    return 1000 / num;
+}
+
+var gameLoopFn = function () {
+    let randNum = Math.floor(Math.random() * 1000);
+    io.emit('numbers-update', randNum);
+};
+
+var serverStatsFn = function() {
+    let stats = {};
+    stats.numSocketsConnected = server.getNumConnected();
+    stats.numPlayers = gs.getNumPlayers();
+    stats.numGames = gs.getNumGames();
+    
+    io.emit("server-stats", stats);
+};
 
 io.on('connection', function(socket) {
     console.log('Socket connection established with ID ' + socket.id);
@@ -42,30 +69,43 @@ server.getNumConnected = function() {
 };
 
 function registerSocketEventListeners(socket) {
-    // =============== Register the socket listening events =========
+
     socket.on('disconnect', function() {
         console.log('Socket disconnection with ID ' + socket.id);
         // Remove the connection from the GameServer
         delete gs.socketMap[socket.id];
     });
 
-    socket.on("ask-client-id", function(clientId) {
-        console.log("client asked for client id. Param: " + clientId);
-        let playerId = clientId;
+    socket.on("ask-client-id", function(clientMsg) {
+        console.log("client asked for client id. Param: " + pp(clientMsg));
+        let playerId = clientMsg.clientId;
         if (!playerId) {
             playerId = gs.generatePlayerId();
         }
-
         // Save the connection
         gs.socketMap[playerId] = socket;
-    
+        // Generate a Player object to represent the player
+        gs.addPlayer(playerId);
         // Send id to client
         socket.emit("client-id", playerId);
     });
 
-    socket.on("ask-reconnect", function(clientId) {
-        console.log("client asked for reconnect with id " + clientId);
-    });
+    socket.on("ask-game-id", function(clientMsg) {
+        console.log("client asked for gameId. Param: " + pp(clientMsg));
+        console.log("number of gamesessions currently: " + gs.getNumGames());
+        let gameSessionId = clientMsg.gameSessionId;
+        // If client hasn't provided a gameId they'd like to join, server will provide one
+        if (!gameSessionId) {
+            console.log("need to generate gamesessionid for client");
+            gameSessionId = gs.joinOpenGame(clientMsg.clientId);
+        }
+        console.log("sending gameSessionId: " + gameSessionId);
+        socket.emit("game-session-id", gameSessionId);
+    })
 
-    // ================================================================
+}
+
+// Pretty print an object
+function pp(obj) {
+    return JSON.stringify(obj, undefined, 2);
 }

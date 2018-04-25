@@ -18,6 +18,7 @@
 
             // Check existing session storage for data. 
             let clientId = sessionStorage.getItem("client-id");
+            let gameSessionId = sessionStorage.getItem("game-session-id");
 
             socket.on('numbers-update', function(randNum) {
               $('#displaynum').text(randNum);
@@ -31,15 +32,36 @@
               $("#client-id").text(clientId);
             });
 
+            socket.on("game-session-id", function(id) {
+              console.log("received game session id from server: " + id);
+              gameSessionId = id;
+              sessionStorage.setItem("game-session-id", gameSessionId);
+              $("#game-session-id").text(gameSessionId);
+            });
+
             socket.on("server-msg", function(serverData) {
               let currentTxt = $("#server-msgs").text;
               $("#server-msgs").text(serverData + "<br>" + currentText);
             });
 
-            $("#connect-to-server").click( function () {
+            $("#connect-to-server").click( function() {
               console.log("connect to server button clicked.");
-              socket.emit("ask-client-id", clientId);
+              let clientMsg = createBasicMsg();
+              socket.emit("ask-client-id", clientMsg);
             });
+
+            $("#join-game").click( function() {
+              let clientMsg = createBasicMsg();
+              socket.emit("ask-game-id", clientMsg);
+            });
+
+            // Create standard client msg that can modify before sending to server
+            function createBasicMsg() {
+              let clientMsg = {};
+              clientMsg.clientId = sessionStorage.getItem("client-id");
+              clientMsg.gameSessionId = sessionStorage.getItem("game-session-id");
+              return clientMsg;
+            }
         });
     </script>
     <h1>Welcome to Ultimate Werewolf</h1>
@@ -54,6 +76,10 @@
     <p>
       <input type="text" placeholder="Enter name"></input><br>
       <button id="connect-to-server" type="button">Connect to Server</button>
+    </p>
+    <p>
+      Game Session ID: <span id="game-session-id"></span><br>
+      <button id="join-game" type="button">Join a Game</button>
     </p>
     <p>
       Server Messages:
