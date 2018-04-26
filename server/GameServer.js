@@ -1,11 +1,15 @@
 var Player = require('./Player.js').Player;
 var GameSession = require('./GameSession.js').GameSession;
+var GameState = require('./GameState.js').GameState;
+var Util = require('../Util.js').Util;
 
 
 var GameServer = {
     lastPlayerID: 0,
-    // Map of socket id's to the player id's of the associated players
-    socketMap: {},
+    // Map of socket id's to the player id's of the associated players. **Duno why have this
+    socketToPlayerMap: {},
+    // Map of playerId to socket obj
+    playerToSocketMap: {},
     // Map of all connected players, fetchable by id
     players: {},
     // Game sessions, mapped by gameId
@@ -40,11 +44,11 @@ GameServer.generatePlayerId = function() {
 
 // Map of {socket id, player id}
 GameServer.addPlayerID = function(socketID, playerID) { 
-    GameServer.socketMap[socketID] = playerID;
+    GameServer.socketToPlayerMap[socketID] = playerID;
 };
 
 GameServer.getPlayerID = function(socketID) {
-    return GameServer.socketMap[socketID];
+    return GameServer.socketToPlayerMap[socketID];
 };
 
 // returns the player corresponding to a specific *socket* ID
@@ -60,15 +64,32 @@ GameServer.addPlayer = function(playerId) {
 
 // remove a socket id/player id mapping
 GameServer.deleteSocketID = function(socketID) { 
-    delete GameServer.socketMap[socketID];
+    delete GameServer.socketToPlayerMap[socketID];
 };
+
+GameServer.tryJoinGame = function(playerId, gameId) {
+    let player = GameServer.players[playerId];
+    let game = GameServer.games[gameId];
+    if (!!game) {
+        // Check if the player is part of the game. Client can only rejoin a game they're already registered to
+        if (!game.players[playerId]) {
+            return false;
+        } else {
+            console.log("Game exists but player not registered to this game. { player " + playerId + " game: " + gameId + " }");
+            return false;
+        }
+    } else {
+        console.log("No such game. { player " + playerId + " game: " + gameId + " }");
+        return false;
+    }
+    return true;
+}
 
 // Returns the game ID
 GameServer.joinOpenGame = function(playerId) {
     // Maybe better idea is to add player to a queue and server loop will 
     // assign ppl in the queue to open games
     let player = GameServer.players[playerId];
-    let retGameId = "";
     for (let gameId in GameServer.games) {
         let gameSession = GameServer.games[gameId];
         // If game is looking for more players, add this player to the game
@@ -76,28 +97,28 @@ GameServer.joinOpenGame = function(playerId) {
             GameServer.addPlayerToGame(player, gameSession);
 
             // Return this game session's ID
-            retGameId = gameSession.id;
+            return gameSession.id;
         }
     }
     // If haven't found an existing game session, create a new one
-    if (!retGameId) {
-        // Loop until can generate a non-existing gameId
-        let found = false;
-        while (!found) {
-            gameId = GameServer.uuidv4();
-            // Create a new game session
-            if (!GameServer.games[gameId]) {
-                let newGameSession = new GameSession();
-                newGameSession.id = gameId;
-                // Update the GameSession and Player
-                GameServer.addPlayerToGame(player, newGameSession);
-                // Update the GameServer
-                GameServer.games[gameId] = newGameSession;
-                found = true;
-            }
+    let newGameSession = GameServer.createGame();
+    // Update the GameSession and Player
+    GameServer.addPlayerToGame(player, newGameSession);
+    return newGameSession.id;
+}
+
+GameServer.createGame = function() {
+    // Loop until can generate a non-existing gameId
+    while (true) {
+        gameId = GameServer.uuidv4();
+        // Create a new game session if there's no existing session with the given id
+        if (!GameServer.games[gameId]) {
+            let newGameSession = new GameSession(gameId);
+            // Update the GameServer
+            GameServer.games[gameId] = newGameSession;
+            return newGameSession;
         }
     }
-    return gameId;
 }
 
 GameServer.addPlayerToGame = function(player, gameSession) {
@@ -134,126 +155,107 @@ GameServer.addNewPlayer = function(socket, data) {
     var player = new Player(data.name);
 
     // The playerId will be the socketId
+};
 
-    /*
-    var document = player.dbTrim();
-    GameServer.server.db.collection('players').insertOne(document,function(err){
-        if(err) throw err;
-        var mongoID = document._id.toString(); // The Mongo driver for NodeJS appends the _id field to the original object reference
-        player.setIDs(mongoID,socket.id);
-        GameServer.finalizePlayer(socket,player);
-        GameServer.server.sendID(socket,mongoID);
-    });
+GameServer.startGame = function(gameId) {
+    let game = GameServer.games[gameId];
+    // Check preconditions
+    if (!game) {
+        console.error("No such game with gameId: " + gameId);
+        return false;
+    }
+    if (game.state !== GameState.WAIT_TO_START) {
+        console.error("Trying to start a game that's not in initial state. State: " + Util.pp(game.state));
+        return false;
+    }
+    if (game.getNumPlayers() < game.minPlayers) {
+        console.error("Trying to start a game with not enough players. Need: " + game.minPlayers + " have: " + game.getNumPlayers());
+        return false;
+    }
+
+    // Conditions have been met to start the game. Transition to give roles to players.
+    game.state = GameState.GIVE_ROLES;
+    // Now that we've set the number of players, create the deck of role cards
+    game.cards = generateRandomDeck();
+    console.log("Created card deck for game. gameId: " + gameId + " deck: " + Util.pp(game.cards));
+    // Need to send msg to client
+    return true;
+}
+
+GameServer.giveRoleCards = function(gameId) {
+    // Check preconditions
+    let game = GameServer.games[gameId];
+    if (!game) {
+        console.error("Game doesn't exist. gameId: " + gameId);
+        return false;
+    }
+    if (game.state !== GameState.GIVE_ROLES) {
+        console.error("Game is NOT in a state to give role cards. state: " + game.state);
+        return false;
+    }
+
+    // Get the deck of role cards
+    let players = game.players;
+    let cards = game.cards; // Cards should already be shuffled
+
+    // Return a list of pairings: { playerId1: card, playerId2: card, ... }
+    let pairings = [];
+    for (let i = 0; i < players.length; i++) {
+        let player = players[i];
+        let card = cards[i];
+        player.roleCard = card;
+        pairings.push({ 
+            playerId: player.id,
+            card: card
+        });
+    }
+    // After assigning player cards, assign the remaining cards to the center
+    for (let i = players.length; i < cards.length; i++) {
+        game.centerCards.push(cards[i]);
+    }
+    return pairings;
+}
+
+function generateRandomDeck(numPlayers) {
+    /* Should always be 3 more cards than # of players.
+        3 players: 
+        2 werewolves; 1 Seer or 1 Robber; 1 Troublemaker; 1 Villager
+
+        4 players:
+        +1 Villager
+
+        5 players:
+        +2 Villagers
     */
-};
+    let cards = [];
+    cards.push("werewolf", "werewolf", "troublemaker", "villager");
+    if (Math.random() <= .5) {
+        cards.push("seer");
+    } else {
+        cards.push("robber");
+    }
 
-/*
-GameServer.loadPlayer = function(socket,id){
-    GameServer.server.db.collection('players').findOne({_id: new ObjectId(id)},function(err,doc){
-        if(err) throw err;
-        if(!doc) {
-            GameServer.server.sendError(socket);
-            return;
-        }
-        var player = new Player();
-        var mongoID = doc._id.toString();
-        player.setIDs(mongoID,socket.id);
-        player.getDataFromDb(doc);
-        GameServer.finalizePlayer(socket,player);
-    });
-};
+    if (numPlayers === 4) {
+        cards.push("villager");
+    } else if (numPlayers === 5) {
+        cards.push("villager");
+        cards.push("villager");
+    }
 
-GameServer.finalizePlayer = function(socket,player){
-    GameServer.addPlayerID(socket.id,player.id);
-    GameServer.embedPlayer(player);
-    GameServer.server.sendInitializationPacket(socket,GameServer.createInitializationPacket(player.id));
-};
+    shuffleCards(cards);
+    return cards;
+}
 
-GameServer.createInitializationPacket = function(playerID){
-    // Create the packet that the client will receive from the server in order to initialize the game
-    return {
-        player: GameServer.players[playerID].trim(), // info about the player
-        nbconnected: GameServer.server.getNbConnected(),
-        nbAOIhorizontal: AOIutils.nbAOIhorizontal, // info about AOI's
-        lastAOIid: AOIutils.lastAOIid
-    };
-};
-*/
-
-/*
-GameServer.savePlayer = function(player){
-    // Save the progress of a player
-    GameServer.server.db.collection('players').updateOne(
-        {_id: new ObjectId(player.getMongoID())},
-        {$set: player.dbTrim() },
-        function(err){
-            if(err) throw err;
-    });
-    player.setLastSavedPosition();
-};
-
-GameServer.deletePlayer = function(id){
-    GameServer.server.db.collection('players').deleteOne({_id: new ObjectId(id)},function(err){
-        if(err) throw err;
-    });
-};
-
-GameServer.removePlayer = function(socketID){
-    var player = GameServer.getPlayer(socketID);
-    GameServer.removeFromLocation(player);
-    player.setProperty('connected',false);
-    player.die();
-    var AOIs = player.listAdjacentAOIs(true);
-    AOIs.forEach(function(aoi){
-        GameServer.addDisconnectToAOI(aoi,player.id);
-    });
-    delete GameServer.players[player.id];
-    GameServer.nbConnectedChanged = true;
-    GameServer.deleteSocketID(socketID);
-};
-*/
-
-
-/*
-// called every 1/12 of sec
-GameServer.update = function(){ 
-    Object.keys(GameServer.players).forEach(function(key) {
-        var player = GameServer.players[key];
-        if(player.alive) player.update();
-    });
-    Object.keys(GameServer.monstersTable).forEach(function(key) {
-        var monster = GameServer.monstersTable[key];
-        if(monster.alive) monster.update();
-    });
-};
-*/
-
-/*
-//Function responsible for setting up and sending update packets to clients
-GameServer.updatePlayers = function(){ 
-    Object.keys(GameServer.players).forEach(function(key) {
-        var player = GameServer.players[key];
-        var localPkg = player.getIndividualUpdatePackage(); // the local pkg is player-specific
-        var globalPkg = GameServer.AOIs[player.aoi].getUpdatePacket(); // the global pkg is AOI-specific
-        var individualGlobalPkg = clone(globalPkg,false); // clone the global pkg to be able to modify it without affecting the original
-        // player.newAOIs is the list of AOIs about which the player hasn't checked for updates yet
-        for(var i = 0; i < player.newAOIs.length; i++){
-            individualGlobalPkg.synchronize(GameServer.AOIs[player.newAOIs[i]]); // fetch updates from the new AOIs
-        }
-        individualGlobalPkg.removeEcho(player.id); // remove redundant information from multiple update sources
-        if(individualGlobalPkg.isEmpty()) individualGlobalPkg = null;
-        if(individualGlobalPkg === null && localPkg === null && !GameServer.nbConnectedChanged) return;
-        var finalPackage = {};
-        if(individualGlobalPkg) finalPackage.global = individualGlobalPkg.clean();
-        if(localPkg) finalPackage.local = localPkg.clean();
-        if(GameServer.nbConnectedChanged) finalPackage.nbconnected = GameServer.server.getNbConnected();
-        GameServer.server.sendUpdate(player.socketID,finalPackage);
-        player.newAOIs = [];
-    });
-    GameServer.nbConnectedChanged = false;
-    GameServer.clearAOIs(); // erase the update content of all AOIs that had any
-};
-*/
-
+function shuffleCards(cardsArr) {
+    // Shuffle the cards by doing a lot of swaps
+    let numSwaps = cardsArr.length * 3;
+    for (let i = 0; i < numSwaps; i++) {
+        let index1 = Util.randInt(cardsArr.length - 1);
+        let index2 = Util.randInt(cardsArr.length - 1);
+        let temp = cardsArr[index1];
+        cardsArr[index1] = cardsArr[index2];
+        cardsArr[index2] = temp;
+    }
+}
 
 module.exports.GameServer = GameServer;

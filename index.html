@@ -24,66 +24,181 @@
               $('#displaynum').text(randNum);
             });
 
-            socket.on("client-id", function(id) {
-              clientId = id;
+            socket.on("server-update", function(serverMsg) {
+              processServerUpdate(serverMsg);
+            });
+
+            // socket.on("game-stats", function(serverMsg) {
+            //     let stats = serverMsg;
+            //     $("#server-stats").text(displayArr.join("<br>"));
+            // });
+
+            function processServerUpdate(serverMsg) {
+              let type = serverMsg.type;
+              console.log("Received server-update. " + pp(serverMsg));
+              if (type === "client-id") {
+                processUpdateClientId(serverMsg);
+              } else if (type === "game-session-id") {
+                processUpdateGameId(serverMsg);
+              } else if (type === "give-role") {
+                processUpdateRole(serverMsg);
+              } else if (type === "stats") {
+                processGameStats(serverMsg);
+              }
+              else {
+                console.log("Unknown server update type: " + type);
+              }
+            }
+
+            function processUpdateClientId(serverMsg) {
+              clientId = serverMsg.data;
               // Store it in session storage
               sessionStorage.setItem("client-id", clientId);
               // Display it
-              $("#client-id").text(clientId);
-            });
+              $(".client-id").text(clientId);
+            }
 
-            socket.on("game-session-id", function(id) {
-              console.log("received game session id from server: " + id);
-              gameSessionId = id;
+            function processUpdateGameId(serverMsg) {
+              let gameSessionId = serverMsg.data;
+              console.log("received game session id from server: " + gameSessionId);
               sessionStorage.setItem("game-session-id", gameSessionId);
-              $("#game-session-id").text(gameSessionId);
-            });
+              $(".game-session-id").text(gameSessionId);
+            }
 
-            socket.on("server-msg", function(serverData) {
-              let currentTxt = $("#server-msgs").text;
-              $("#server-msgs").text(serverData + "<br>" + currentText);
-            });
+            function processUpdateRole(serverMsg) {
+              let roleCard = serverMsg.data;
+              sessionStorage.setItem("role-card", roleCard);
+              $(".role-card").text(roleCard);
+            }
+
+            function processGameStats(serverMsg) {
+              let stats = serverMsg.data;
+              let clientId = stats["clientId"];
+              let gameId = stats["gameId"];
+              let numPlayers = stats["numPlayers"];
+              let gameState = stats["gameState"];
+              let roleCard = stats["roleCard"];
+
+              if (!!clientId) { $(".client-id").text(clientId); }
+              if (!!gameId) { $(".game-session-id").text(gameId); }
+              if (!!numPlayers) { $(".num-players-in-game").text(numPlayers); }
+              if (!!gameState) { $(".game-state").text(gameState); }
+              if (!!roleCard) { $(".role-card").text(roleCard); }
+            }
+
+            // socket.on("server-msg", function(serverData) {
+            //   let currentTxt = $("#server-msgs").text;
+            //   $("#server-msgs").text(serverData + "<br>" + currentText);
+            // });
 
             $("#connect-to-server").click( function() {
               console.log("connect to server button clicked.");
-              let clientMsg = createBasicMsg();
-              socket.emit("ask-client-id", clientMsg);
+              let clientMsg = createClientMsg("client-id");
+              socket.emit("ask-server", clientMsg);
             });
 
             $("#join-game").click( function() {
-              let clientMsg = createBasicMsg();
-              socket.emit("ask-game-id", clientMsg);
+              let clientMsg = createClientMsg("game-id");
+              socket.emit("ask-server", clientMsg);
             });
 
-            // Create standard client msg that can modify before sending to server
-            function createBasicMsg() {
-              let clientMsg = {};
-              clientMsg.clientId = sessionStorage.getItem("client-id");
-              clientMsg.gameSessionId = sessionStorage.getItem("game-session-id");
-              return clientMsg;
+            $("#start-game").click( function() {
+              let clientMsg = createClientMsg("start-game");
+              socket.emit("ask-server", clientMsg);
+
+              clientMsg = createClientMsg("stats|numPlayersInGame");
+              socket.emit("ask-server", clientMsg, function(data) {
+                $(".num-players-in-game").text(data);
+              });
+            });
+
+            // Create the client msg to send to server
+            function createClientMsg(request) {
+              return {
+                clientId: sessionStorage.getItem("client-id"),
+                gameSessionId: sessionStorage.getItem("game-session-id"),
+                request: request
+              };
+            }
+
+            // Pretty print an object
+            function pp(obj) {
+              return JSON.stringify(obj, undefined, 2);
             }
         });
     </script>
+    <style>
+      /* Stretch the bg image to fill screen and reduce opacity */
+      #bg-image {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 100%;
+        background-image: url("assets/title-screen-2.jpg");
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-size: 100%;
+        opacity: .3;
+        filter:alpha(opacity=80);
+        z-index: -1;
+      }
+
+      #stats-box {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 500px;
+        background-color: white;
+        opacity: .7;
+      }
+
+      .display {
+        background-color: #ccff99;
+      }
+
+      .header {
+        font-weight: bold;
+        /*font-style: italic;*/
+      }
+    </style>
     <h1>Welcome to Ultimate Werewolf</h1>
   </head>
   <body>
-    <p>
-      Client ID: <span id="client-id"></span>
-    </p>
+    <div id="bg-image">
+    </div>
+    <div id="stats-box">
+      Stats Box <br>
+      Client ID: <span class="client-id display"></span><br>
+      Game Session ID: <span class="game-session-id display"></span><br>
+      Num Players in Game: <span class="num-players-in-game display"></span><br>
+      Game State: <span class="game-state display"></span><br>      
+      Role Card: <span class="role-card display"></span><br>
+    </div>
     <p>
     Server sent number: <span id="displaynum">no data yet</span>
     </p>
     <p>
+      <span class="header">Step 1: Client connects to server</span><br>
+      Client ID: <span class="client-id display"></span><br>
       <input type="text" placeholder="Enter name"></input><br>
       <button id="connect-to-server" type="button">Connect to Server</button>
     </p>
     <p>
-      Game Session ID: <span id="game-session-id"></span><br>
+      <span class="header">Step 2: Client requests to join a game</span><br>
+      Game Session ID: <span class="game-session-id display"></span><br>
       <button id="join-game" type="button">Join a Game</button>
     </p>
     <p>
-      Server Messages:
-      <span id="#server-msgs"></span>
+      <span class="header">Step 3: Game starts. Each player receives their role card</span><br>
+      Role Card: <span class="role-card display"></span><br>
+      Num Players in Game: <span class="num-players-in-game display"></span><br>
+      <button id="start-game" type="button">Start Game</button>
+    </p>
+    <p>
+      <span class="header">Step 4: Announcer directs the turns for first night.</span><br>
+      Announcer Messages: <span id="announcer-msgs" class="display"></span><br>
+      <button id="do-game-action" type="button">Do Role Action</button>
     </p>
   </body>
 </html>
