@@ -4,6 +4,7 @@ var server = require('http').Server(app);
 var io = require('socket.io').listen(server);
 var gs = require('./server/GameServer.js').GameServer;
 var Util = require('./Util.js').Util;
+var util = require('util');
 
 //app.use('/server', express.static(__dirname + '/server'));
 
@@ -35,6 +36,10 @@ server.listen(8081, function() {
 
 function timesPerSecToMs(num) {
     return 1000 / num;
+}
+
+function secToMs(num) {
+    return 1000 * num;
 }
 
 var gameLoopFn = function () {
@@ -87,6 +92,8 @@ function processServerRequest(socket, clientMsg, callback) {
         processAskGameId(socket, clientMsg);
     } else if (request === "start-game") {
         processAskStartGame(socket, clientMsg);
+    } else if (request === "role-input") {
+        processRoleInput(socket, clientMsg);
     } else if (request === "stats") {
         processAskStats(socket, clientMsg, callback);
     }
@@ -141,7 +148,7 @@ function processAskGameId(socket, clientMsg) {
     let serverMsg = createServerMsg("game-session-id", gameSessionId);
     socket.emit("server-update", serverMsg);
 
-    sendClientStats(socket, clientMsg.clientId);
+    sendPlayerStats(socket, clientMsg.clientId);
 
     // Send client game stats at regular intervals
     //let intervalId = setInterval(clientGameStatsFn(socket, clientId, gameSessionId), timesPerSecToMs(1));
@@ -169,11 +176,11 @@ function processAskStartGame(socket, clientMsg) {
     let gameSessionId = clientMsg.gameSessionId;
     let started = gs.startGame(gameSessionId);
 
-    sendClientStats(socket, clientMsg.clientId);
+    sendPlayerStats(socket, clientMsg.clientId);
     
-    // Schedule for game to hand out role cards in 1 sec
+    // Schedule for game to hand out role cards
     if (started) {
-        setTimeout(giveRolesFn(gameSessionId), timesPerSecToMs(1));
+        setTimeout(giveRolesFn(gameSessionId), secToMs(2));
     }
 }
 
@@ -182,18 +189,72 @@ function giveRolesFn(gameId) {
     let fn = function() {
         console.log("Giving roles to clients. gameId: " + gameId);
         let pairings = gs.giveRoleCards(gameId);
-        // Notify clients what their role card is
+        console.log("pairings: " + util.inspect(pairings));
+        // Notify each client what their role card is
         for (let i = 0; i < pairings.length; i++) {
-            let playerId = pairings.playerId;
-            let roleCard = pairings.roleCard;
+            let playerId = pairings[i].playerId;
+            let roleCard = pairings[i].roleCard;
+            //console.log("playerToSocketMap: " + util.inspect(gs.playerToSocketMap));
             let socket = gs.playerToSocketMap[playerId];
+            if (!socket) {
+                console.error("No socket for player. playerId: " + playerId);
+                console.error("keys for playerToSocketMap: " + util.inspect(Object.keys(gs.playerToSocketMap)));
+            }
             let serverMsg = createServerMsg("give-role", roleCard);
             socket.emit("server-update", serverMsg);
 
-            sendClientStats(socket, playerId);
+            sendPlayerStats(socket, playerId);            
         }
+        // // Transition game to next state
+        // gs.games[gameId].state = GameState.GET_ROLE_INPUTS;
+        // // Update everyone that the game state has changed
+        // sendClientStatsToAll(gameId);
+        setTimeout(getRoleInputsFn(gameId), secToMs(4));  
     }
     return fn;
+}
+
+// Announcer will tell each client what they need to do for their action
+var getRoleInputsFn = function(gameId) {
+    let fn = function() {
+        // Send to all clients "Everyone, close your eyes."
+        let serverMsg = createServerMsg("announcer-msg", "Everyone, close your eyes.");
+        sendMsgToAllPlayers(gameId, serverMsg);
+
+        // Send to each player, instructions specific to their role
+        // Exact instructions will be client-side? Server, of course will validate
+        // what the client sends. Actually, in the case of werewolves, need to know who
+        // other werewolves are. Client could potentially ask to see other werewolves.
+        // let game = gs.games[gameId];
+        // let playerIds = game.getPlayerIds();
+        // for (let playerId of playerIds) {
+        //     let player = game.players[playerId];
+        // }
+        serverMsg = createServerMsg("do-role-action", "");
+        sendMsgToAllPlayers(gameId, serverMsg);
+    };
+    return fn;
+}
+
+function processRoleInputs(socket, clientMsg) {
+    let clientId = clientMsg.clientId;
+    let roleCard = clientMsg.roleCard;
+    let roleInput = clientMsg.roleInput;
+    if (roleCard === "werewolf") {
+
+    } else if (roleCard === "seer") {
+
+    } else if (roleCard === "robber") {
+
+    } else if (roleCard === "troublemaker") {
+
+    } else if (roleCard === "villager") {
+
+    } else {
+        console.error("Unknown roleCard: " + roleCard);
+    }
+    // Check if all players have completed their role action. If so, set the next phase to start
+    // Next phase is: SHOW_ACTION_RESULT
 }
 
 function processAskStats(socket, clientMsg, callback) {
@@ -220,7 +281,7 @@ function processAskStats(socket, clientMsg, callback) {
     }
 }
 
-function createClientGameStatsData(clientId) {
+function createPlayerGameStatsData(clientId) {
     // clientId, gameId, numplayers, game state, client's role card
     let stats = {};
     let player = gs.players[clientId];
@@ -241,14 +302,47 @@ function createClientGameStatsData(clientId) {
     stats["gameState"] = game.state.name;    
     stats["roleCard"] = player.roleCard;
     console.log("role card: " + Util.pp(player.roleCard));
+    stats["allCards"] = game.cards;
     
     return stats;
 }
 
-function sendClientStats(socket, clientId) {
-    let clientGameStats = createClientGameStatsData(clientId);
-    let serverMsg = createServerMsg("stats", clientGameStats);
-    socket.emit("server-update", serverMsg);
+function sendMsgToPlayer(socket, msg) {
+    socket.emit("server-update", msg);
+}
+
+function sendMsgToAllPlayers(gameId, msg) {
+    let sockets = gs.getPlayerSockets(gameId);
+    for (let socket of sockets) {
+        sendMsgToPlayer(socket, msg);
+    }
+    // let game = gs.games[gameId];
+    // let playerIds = game.getPlayerIds(); //Object.keys(game.players);
+    // for (let playerId of playerIds) {
+    //     let socket = gs.playerToSocketMap[playerId];
+    //     sendMsgToPlayer(socket, msg);
+    // }
+}
+
+function sendPlayerStats(socket, playerId) {
+    let playerGameStats = createPlayerGameStatsData(playerId);
+    let serverMsg = createServerMsg("stats", playerGameStats);
+    //socket.emit("server-update", serverMsg);
+    sendMsgToPlayer(socket, serverMsg);
+}
+
+// Update all clients in the game
+function sendPlayerStatsToAll(gameId) {
+    let sockets = gs.getPlayerSockets(gameId);
+    for (let socket of sockets) {
+        sendPlayerStats(socket, playerId);
+    }
+    // let game = gs.games[gameId];
+    // let playerIds = game.getPlayerIds(); //Object.keys(game.players);
+    // for (let playerId of playerIds) {
+    //     let socket = gs.playerToSocketMap[playerId];
+    //     sendPlayerStats(socket, playerId);
+    // }
 }
 
 server.getNumConnected = function() {

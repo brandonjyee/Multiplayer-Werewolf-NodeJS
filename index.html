@@ -42,9 +42,12 @@
                 processUpdateGameId(serverMsg);
               } else if (type === "give-role") {
                 processUpdateRole(serverMsg);
-              } else if (type === "stats") {
-                processGameStats(serverMsg);
+              } else if (type === "announcer-msg") {
+                processAnnouncerMsg(serverMsg);
               }
+              else if (type === "stats") {
+                processGameStats(serverMsg);
+              } 
               else {
                 console.log("Unknown server update type: " + type);
               }
@@ -71,6 +74,12 @@
               $(".role-card").text(roleCard);
             }
 
+            function processAnnouncerMsg(serverMsg) {
+              let newMsg = serverMsg.data;
+              // let currentMsgs = $(".announcer-msgs").text;
+              $(".announcer-msgs").append(newMsg);
+            }
+
             function processGameStats(serverMsg) {
               let stats = serverMsg.data;
               let clientId = stats["clientId"];
@@ -78,12 +87,14 @@
               let numPlayers = stats["numPlayers"];
               let gameState = stats["gameState"];
               let roleCard = stats["roleCard"];
+              let allCards = stats["allCards"];
 
               if (!!clientId) { $(".client-id").text(clientId); }
               if (!!gameId) { $(".game-session-id").text(gameId); }
               if (!!numPlayers) { $(".num-players-in-game").text(numPlayers); }
               if (!!gameState) { $(".game-state").text(gameState); }
               if (!!roleCard) { $(".role-card").text(roleCard); }
+              if (!!allCards) { $(".all-cards").text(allCards.join("|")); }
             }
 
             // socket.on("server-msg", function(serverData) {
@@ -174,6 +185,7 @@
       Num Players in Game: <span class="num-players-in-game display"></span><br>
       Game State: <span class="game-state display"></span><br>      
       Role Card: <span class="role-card display"></span><br>
+      All Cards: <span class="all-cards display"></span><br>
     </div>
     <p>
     Server sent number: <span id="displaynum">no data yet</span>
@@ -197,7 +209,7 @@
     </p>
     <p>
       <span class="header">Step 4: Announcer directs the turns for first night.</span><br>
-      Announcer Messages: <span id="announcer-msgs" class="display"></span><br>
+      Announcer Messages: <span class="announcer-msgs display"></span><br>
       <button id="do-game-action" type="button">Do Role Action</button>
     </p>
   </body>

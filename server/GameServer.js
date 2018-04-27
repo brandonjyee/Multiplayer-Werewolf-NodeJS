@@ -2,11 +2,13 @@ var Player = require('./Player.js').Player;
 var GameSession = require('./GameSession.js').GameSession;
 var GameState = require('./GameState.js').GameState;
 var Util = require('../Util.js').Util;
+var util = require('util');
 
 
 var GameServer = {
     lastPlayerID: 0,
-    // Map of socket id's to the player id's of the associated players. **Duno why have this
+    // Map of socket id's to the player id's of the associated players. 
+    // **Duno why have this
     socketToPlayerMap: {},
     // Map of playerId to socket obj
     playerToSocketMap: {},
@@ -16,25 +18,12 @@ var GameServer = {
     games: {}
 }
 
-//A few helper functions
-
-GameServer.uuidv4 = function() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-    /* // Cryptographically secure version
-    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-    )*/
-}
-
 GameServer.generatePlayerId = function() {
     let clientId = 0;
     let found = false;
     // Generate IDs until found a fresh one
     while (!found) {
-        clientId = GameServer.uuidv4(); //Math.floor(Math.random() * 100000);
+        clientId = Util.uuidv4();
         if (GameServer.players[clientId] === undefined) {
             found = true;
         }
@@ -51,7 +40,7 @@ GameServer.getPlayerID = function(socketID) {
     return GameServer.socketToPlayerMap[socketID];
 };
 
-// returns the player corresponding to a specific *socket* ID
+// Returns the player corresponding to a specific *socket* ID
 GameServer.getPlayer = function(socketID) { 
     return GameServer.players[GameServer.getPlayerID(socketID)];
 };
@@ -110,7 +99,7 @@ GameServer.joinOpenGame = function(playerId) {
 GameServer.createGame = function() {
     // Loop until can generate a non-existing gameId
     while (true) {
-        gameId = GameServer.uuidv4();
+        gameId = Util.uuidv4();
         // Create a new game session if there's no existing session with the given id
         if (!GameServer.games[gameId]) {
             let newGameSession = new GameSession(gameId);
@@ -128,10 +117,12 @@ GameServer.addPlayerToGame = function(player, gameSession) {
     player.gameSession = gameSession;
 }
 
+// Get total number of active games
 GameServer.getNumGames = function() {
     return Object.keys(GameServer.games).length;
 }
 
+// Gets total number of players connected to the server
 GameServer.getNumPlayers = function() {
     return Object.keys(GameServer.players).length;
 }
@@ -153,8 +144,6 @@ GameServer.addNewPlayer = function(socket, data) {
     }
     // Creates a player with client specified name
     var player = new Player(data.name);
-
-    // The playerId will be the socketId
 };
 
 GameServer.startGame = function(gameId) {
@@ -183,6 +172,7 @@ GameServer.startGame = function(gameId) {
 }
 
 GameServer.giveRoleCards = function(gameId) {
+    console.log("in giveRoleCards. gameId: " + gameId);
     // Check preconditions
     let game = GameServer.games[gameId];
     if (!game) {
@@ -194,32 +184,44 @@ GameServer.giveRoleCards = function(gameId) {
         return false;
     }
 
-    // Get the deck of role cards
     let players = game.players;
-    let cards = game.cards; // Cards should already be shuffled
+    console.log("players: " + util.inspect(players));
+    // Cards should already be shuffled but doesn't hurt to shuffle again    
+    let cards = game.cards; 
+    Util.shuffle(cards);
+    console.log("cards: " + util.inspect(cards));
 
     // Return a list of pairings: { playerId1: card, playerId2: card, ... }
     let pairings = [];
-    for (let i = 0; i < players.length; i++) {
-        let player = players[i];
+    let playerIds = Object.keys(players);
+    for (let i = 0; i < playerIds.length; i++) {
+        let player = players[playerIds[i]];
         let card = cards[i];
         player.roleCard = card;
         pairings.push({ 
             playerId: player.id,
-            card: card
+            roleCard: card
         });
     }
+    console.log("pairings: " + Util.pp(pairings));
     // After assigning player cards, assign the remaining cards to the center
-    for (let i = players.length; i < cards.length; i++) {
+    for (let i = playerIds.length; i < cards.length; i++) {
         game.centerCards.push(cards[i]);
     }
+    console.log("center cards: " + Util.pp(game.centerCards));
+
+    Util.shuffle(cards);
+    
+    // Transition the game to the next state
+    game.state = GameState.GET_ROLE_INPUTS;
+
     return pairings;
 }
 
 function generateRandomDeck(numPlayers) {
     /* Should always be 3 more cards than # of players.
         3 players: 
-        2 werewolves; 1 Seer or 1 Robber; 1 Troublemaker; 1 Villager
+        2 werewolves; 1 Seer; 1 Robber; 1 Troublemaker; 1 Villager
 
         4 players:
         +1 Villager
@@ -228,12 +230,7 @@ function generateRandomDeck(numPlayers) {
         +2 Villagers
     */
     let cards = [];
-    cards.push("werewolf", "werewolf", "troublemaker", "villager");
-    if (Math.random() <= .5) {
-        cards.push("seer");
-    } else {
-        cards.push("robber");
-    }
+    cards.push("werewolf", "werewolf", "seer", "robber", "troublemaker", "villager");
 
     if (numPlayers === 4) {
         cards.push("villager");
@@ -242,20 +239,20 @@ function generateRandomDeck(numPlayers) {
         cards.push("villager");
     }
 
-    shuffleCards(cards);
+    Util.shuffle(cards);
     return cards;
 }
 
-function shuffleCards(cardsArr) {
-    // Shuffle the cards by doing a lot of swaps
-    let numSwaps = cardsArr.length * 3;
-    for (let i = 0; i < numSwaps; i++) {
-        let index1 = Util.randInt(cardsArr.length - 1);
-        let index2 = Util.randInt(cardsArr.length - 1);
-        let temp = cardsArr[index1];
-        cardsArr[index1] = cardsArr[index2];
-        cardsArr[index2] = temp;
+GameServer.getPlayerSockets = function(gameId) {
+    let sockets = [];
+    let game = GameServer.games[gameId];
+    let playerIds = game.getPlayerIds(); 
+    for (let playerId of playerIds) {
+        let socket = GameServer.playerToSocketMap[playerId];
+        sockets.push(socket);
     }
+    return sockets;
 }
+
 
 module.exports.GameServer = GameServer;

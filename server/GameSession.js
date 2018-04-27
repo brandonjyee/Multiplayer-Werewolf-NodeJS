@@ -2,7 +2,7 @@ var GameState = require("./GameState.js").GameState;
 
 function GameSession(id) {
     this.id = id;
-    // Map of players
+    // Map of playerIds to players
     this.players = {};
     this.minPlayers = 3;
     this.maxPlayers = 10;
@@ -22,8 +22,12 @@ GameSession.prototype.hasPlayer = function(player) {
     return !!this.players[player.id];
 }
 
-GameSession.generateDeck = function(numPlayers, includeCardsArr, excludeCardsArr) {
+GameSession.prototype.getPlayerIds = function() {
+    return Object.keys(this.players);
+}
 
+GameSession.generateDeck = function(numPlayers, includeCardsArr, excludeCardsArr) {
+    // TODO
 }
 
 module.exports.GameSession = GameSession;
