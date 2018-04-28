@@ -2,8 +2,9 @@ var express = require('express');
 var app = express();
 var server = require('http').Server(app);
 var io = require('socket.io').listen(server);
-var gs = require('./server/GameServer.js').GameServer;
-var Util = require('./Util.js').Util;
+var gs = require('./js/server/GameServer.js').GameServer;
+var Role = require('./js/server/Role.js').Role;
+var Util = require('./js/Util.js').Util;
 var util = require('util');
 
 //app.use('/server', express.static(__dirname + '/server'));
@@ -19,8 +20,8 @@ app.get('/admin', function(req, res) {
 });
 
 // Serve static files from assets directory
-// app.use(express.static('assets'))
 app.use('/assets', express.static(__dirname + '/assets'));
+app.use('/js', express.static(__dirname + '/js'));
 
 // The client accesses the http server to get the web page that contains the client code
 // Once the page loads the client code, the client will attempt to establish a websocket
@@ -92,9 +93,13 @@ function processServerRequest(socket, clientMsg, callback) {
         processAskGameId(socket, clientMsg);
     } else if (request === "start-game") {
         processAskStartGame(socket, clientMsg);
-    } else if (request === "role-input") {
+    } else if (request === "did-role-action") {
         processRoleInput(socket, clientMsg);
-    } else if (request === "stats") {
+    } 
+    // else if (request === "did-role-action") {
+    //     processRoleAction
+    // } 
+    else if (request === "stats") {
         processAskStats(socket, clientMsg, callback);
     }
     else {
@@ -111,6 +116,7 @@ function createServerMsg(type, data) {
 
 function processAskClientId(socket, clientMsg) {
     console.log("client asked for client id. Param: " + Util.pp(clientMsg));
+    let playerName = clientMsg.clientName;
     let playerId = clientMsg.clientId;
     if (!playerId) {
         playerId = gs.generatePlayerId();
@@ -119,7 +125,7 @@ function processAskClientId(socket, clientMsg) {
     gs.socketToPlayerMap[socket.id] = playerId;
     gs.playerToSocketMap[playerId] = socket;
     // Generate a Player object to represent the player
-    gs.addPlayer(playerId);
+    gs.addPlayer(playerId, playerName);
     // Send id to client
     let serverMsg = createServerMsg("client-id", playerId);
     socket.emit("server-update", serverMsg);
@@ -200,15 +206,13 @@ function giveRolesFn(gameId) {
                 console.error("No socket for player. playerId: " + playerId);
                 console.error("keys for playerToSocketMap: " + util.inspect(Object.keys(gs.playerToSocketMap)));
             }
-            let serverMsg = createServerMsg("give-role", roleCard);
+            let serverMsg = createServerMsg("give-role", roleCard.name);
             socket.emit("server-update", serverMsg);
 
             sendPlayerStats(socket, playerId);            
         }
-        // // Transition game to next state
-        // gs.games[gameId].state = GameState.GET_ROLE_INPUTS;
-        // // Update everyone that the game state has changed
-        // sendClientStatsToAll(gameId);
+
+        // Schedule for game to handle the players doing their role action 
         setTimeout(getRoleInputsFn(gameId), secToMs(4));  
     }
     return fn;
@@ -216,6 +220,7 @@ function giveRolesFn(gameId) {
 
 // Announcer will tell each client what they need to do for their action
 var getRoleInputsFn = function(gameId) {
+    let game = gs.games[gameId];
     let fn = function() {
         // Send to all clients "Everyone, close your eyes."
         let serverMsg = createServerMsg("announcer-msg", "Everyone, close your eyes.");
@@ -230,21 +235,52 @@ var getRoleInputsFn = function(gameId) {
         // for (let playerId of playerIds) {
         //     let player = game.players[playerId];
         // }
-        serverMsg = createServerMsg("do-role-action", "");
-        sendMsgToAllPlayers(gameId, serverMsg);
+
+        game.forEachPlayer(function(player) {
+            let data = "";
+            let role = player.roleCard;
+            if (role === Role.WEREWOLF) {
+                // Get playerIds in game that have werewolf card
+                let werewolfIds = game.getPlayersWithRole(Role.WEREWOLF);
+                data = werewolfIds.join("|");
+            }
+            serverMsg = createServerMsg("do-role-action", data);
+            serverMsg.role = role.name;
+            serverMsg.playerInstructions = role.action;
+
+            let socket = gs.playerToSocketMap[player.id];
+            socket.emit("server-update", serverMsg);
+        });
+        
     };
     return fn;
 }
 
-function processRoleInputs(socket, clientMsg) {
+// *** Need to know when all players have completed their action. Might be time-based thing.
+// Can also do a flag check?
+function processRoleInput(socket, clientMsg) {
     let clientId = clientMsg.clientId;
+    let gameId = clientMsg.gameId;
     let roleCard = clientMsg.roleCard;
-    let roleInput = clientMsg.roleInput;
+    let actionData = clientMsg.actionData;
+
+    // *** Check if client packet has valid info
+    let game = gs.games[gameId];
+    let player = gs.players[clientId];
+
     if (roleCard === "werewolf") {
-
+        // Werewolves don't do anything. Just look at each other.
     } else if (roleCard === "seer") {
-
+        // Look at another player's card or two center cards. Should cards have Ids?
+        // For now, either choose playerId or center
+        // Check validity
+        if (actionData === "center" || game.hasPlayer(actionData)) {
+            // It's a valid input
+            // Return results to user
+            player.actions["action"] = actionData;
+        }
     } else if (roleCard === "robber") {
+        // 
 
     } else if (roleCard === "troublemaker") {
 
@@ -290,6 +326,7 @@ function createPlayerGameStatsData(clientId) {
         return stats;
     }
     stats["clientId"] = clientId;
+    stats["clientName"] = player.name;
 
     let game = player.gameSession;
     if (!game) {
@@ -300,9 +337,9 @@ function createPlayerGameStatsData(clientId) {
     let numPlayers = game.getNumPlayers();
     stats["numPlayers"] = numPlayers;
     stats["gameState"] = game.state.name;    
-    stats["roleCard"] = player.roleCard;
-    console.log("role card: " + Util.pp(player.roleCard));
-    stats["allCards"] = game.cards;
+    stats["roleCard"] = player.getCardAsStr();
+    console.log("role card: " + Util.pp(player.getCardAsStr()));
+    stats["allCards"] = game.getCardsAsStrArr();
     
     return stats;
 }

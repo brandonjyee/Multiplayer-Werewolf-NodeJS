@@ -1,6 +1,7 @@
 var Player = require('./Player.js').Player;
 var GameSession = require('./GameSession.js').GameSession;
 var GameState = require('./GameState.js').GameState;
+var Role = require('./Role.js').Role;
 var Util = require('../Util.js').Util;
 var util = require('util');
 
@@ -45,8 +46,8 @@ GameServer.getPlayer = function(socketID) {
     return GameServer.players[GameServer.getPlayerID(socketID)];
 };
 
-GameServer.addPlayer = function(playerId) {
-    let newPlayer = new Player();
+GameServer.addPlayer = function(playerId, name) {
+    let newPlayer = new Player(name);
     newPlayer.id = playerId;
     GameServer.players[playerId] = newPlayer;
 }
@@ -82,7 +83,8 @@ GameServer.joinOpenGame = function(playerId) {
     for (let gameId in GameServer.games) {
         let gameSession = GameServer.games[gameId];
         // If game is looking for more players, add this player to the game
-        if (gameSession.getNumPlayers() < gameSession.maxPlayers) {
+        if (gameSession.getNumPlayers() < gameSession.maxPlayers
+            && gameSession.state === GameState.WAIT_TO_START) {
             GameServer.addPlayerToGame(player, gameSession);
 
             // Return this game session's ID
@@ -163,9 +165,18 @@ GameServer.startGame = function(gameId) {
     }
 
     // Conditions have been met to start the game. Transition to give roles to players.
+    // Check if can grab the lock on processing this game state. This is to coordinate
+    // such that only one function processes this game state (in case multiple functions
+    // are scheduled). Alternative is to ensure that only one function is scheduled, but
+    // that might be difficult in some cases. Scheduling is currently handled by server.js, not by
+    // GameServer.js.
+    if (!game.tryGetProcessingLock(GameState.WAIT_TO_START)) {
+        return false;
+    }
+
     game.state = GameState.GIVE_ROLES;
     // Now that we've set the number of players, create the deck of role cards
-    game.cards = generateRandomDeck();
+    game.cards = Role.generateRandomDeck(game.getNumPlayers());
     console.log("Created card deck for game. gameId: " + gameId + " deck: " + Util.pp(game.cards));
     // Need to send msg to client
     return true;
@@ -183,30 +194,33 @@ GameServer.giveRoleCards = function(gameId) {
         console.error("Game is NOT in a state to give role cards. state: " + game.state);
         return false;
     }
+    // Try to get the processing lock
+    if (!game.tryGetProcessingLock(GameState.GIVE_ROLES)) {
+        return false;
+    }
 
     let players = game.players;
-    console.log("players: " + util.inspect(players));
+    //console.log("players: " + util.inspect(players));
     // Cards should already be shuffled but doesn't hurt to shuffle again    
-    let cards = game.cards; 
+    let cards = game.getCopyOfCards();
     Util.shuffle(cards);
     console.log("cards: " + util.inspect(cards));
 
     // Return a list of pairings: { playerId1: card, playerId2: card, ... }
     let pairings = [];
-    let playerIds = Object.keys(players);
-    for (let i = 0; i < playerIds.length; i++) {
-        let player = players[playerIds[i]];
-        let card = cards[i];
+    game.forEachPlayer( function(player, index) {
+        let card = cards.pop();
         player.roleCard = card;
         pairings.push({ 
             playerId: player.id,
             roleCard: card
         });
-    }
+    });
     console.log("pairings: " + Util.pp(pairings));
     // After assigning player cards, assign the remaining cards to the center
-    for (let i = playerIds.length; i < cards.length; i++) {
-        game.centerCards.push(cards[i]);
+    //for (let i = playerIds.length; i < cards.length; i++) {
+    while (cards.length > 0) {
+        game.centerCards.push(cards.pop());
     }
     console.log("center cards: " + Util.pp(game.centerCards));
 
@@ -218,29 +232,25 @@ GameServer.giveRoleCards = function(gameId) {
     return pairings;
 }
 
-function generateRandomDeck(numPlayers) {
-    /* Should always be 3 more cards than # of players.
-        3 players: 
-        2 werewolves; 1 Seer; 1 Robber; 1 Troublemaker; 1 Villager
-
-        4 players:
-        +1 Villager
-
-        5 players:
-        +2 Villagers
-    */
-    let cards = [];
-    cards.push("werewolf", "werewolf", "seer", "robber", "troublemaker", "villager");
-
-    if (numPlayers === 4) {
-        cards.push("villager");
-    } else if (numPlayers === 5) {
-        cards.push("villager");
-        cards.push("villager");
+GameServer.processRoleInputs = function(gameId) {
+    console.log("in processRoleInputs. gameId: " + gameId);
+    // Check preconditions
+    let game = GameServer.games[gameId];
+    if (!game) {
+        console.error("Game doesn't exist. gameId: " + gameId);
+        return false;
+    }
+    if (game.state !== GameState.GET_ROLE_INPUTS) {
+        console.error("Game is NOT in a state to process role inputs. state: " + game.state);
+        return false;
+    }
+    // Try to get the processing lock
+    if (!game.tryGetProcessingLock(GameState.GET_ROLE_INPUTS)) {
+        return false;
     }
 
-    Util.shuffle(cards);
-    return cards;
+    let players = game.players;
+
 }
 
 GameServer.getPlayerSockets = function(gameId) {

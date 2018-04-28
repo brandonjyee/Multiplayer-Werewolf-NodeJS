@@ -50,4 +50,13 @@ Util.shuffle = function (a) {
 //     return a;
 // }
 
-module.exports.Util = Util;
+Util.getTimestamp = function() {
+    var dt = new Date();
+    return dt.toUTCString();
+}
+
+// This js file is shared with both server and client.
+// Only export module for server-side code, else it'll result in an error client-side
+if (typeof window === 'undefined') {
+    module.exports.Util = Util;
+}
