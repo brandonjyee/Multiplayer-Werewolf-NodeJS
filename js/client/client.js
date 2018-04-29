@@ -14,6 +14,10 @@ let socket = io();
 let clientId = sessionStorage.getItem("client-id");
 let gameSessionId = sessionStorage.getItem("game-session-id");
 
+// Map of playerId to an obj containing info related to player: 
+// profile-pic, player number, etc
+let playerIdMap = {};
+
 // Populate text box(es) with random data
 $("#client-name").val(faker.name.findName());
 
@@ -36,6 +40,9 @@ function processServerUpdate(serverMsg) {
         processUpdateClientId(serverMsg);
     } else if (type === "game-session-id") {
         processUpdateGameId(serverMsg);
+    } else if (type === "game-started") {
+        // processGameStarted(serverMsg);
+        // TODO. Countdown to start. Switch daylight bg to night
     } else if (type === "give-role") {
         processUpdateRole(serverMsg);
     } else if (type === "announcer-msg") {
@@ -59,7 +66,13 @@ function processUpdateClientId(serverMsg) {
     sessionStorage.setItem("client-id", clientId);
     // Display it
     $(".client-id").text(clientId);
+
+    // Randomly select a profile-pic for this player
+    let picUrl = trySetRandomAvatar(clientId);
+    $(".player-pic").css("content", "url(" + picUrl + ")");
 }
+
+
 
 function processUpdateGameId(serverMsg) {
     let gameSessionId = serverMsg.data;
@@ -76,8 +89,10 @@ function processUpdateRole(serverMsg) {
     console.log("roleCard: " + roleCard);
     let imgUrl = RoleMap[roleCard].getImgUrl();
     imgUrl = "url(" + imgUrl + ")";
-    // $("#bg-role-card").css("background-image", imgUrl);
     $("img.role-card-img").css("content", imgUrl);
+
+    // Also change daylight bg to night bg. This should be changed later.
+    $("#game-header .bg").css("content", "url(assets/night-1.png)");
 }
 
 function processAnnouncerMsg(serverMsg) {
@@ -116,6 +131,7 @@ function processGameStats(serverMsg) {
     let gameState = stats["gameState"];
     let roleCard = stats["roleCard"];
     let allCards = stats["allCards"];
+    let playersInGame = stats["playersInGame"];
 
     if (!!clientId) { $(".client-id").text(clientId); }
     if (!!gameId) { $(".game-session-id").text(gameId); }
@@ -123,6 +139,21 @@ function processGameStats(serverMsg) {
     if (!!gameState) { $(".game-state").text(gameState); }
     if (!!roleCard) { $(".role-card").text(roleCard); }
     if (!!allCards) { $(".all-cards").text(allCards.join("|")); }
+    if (!!playersInGame) {
+        // Check if player is new or already registered with the client
+        for (let somePlayerObj of playersInGame) {
+            let somePlayerId = somePlayerObj["playerId"];
+            let localPlayerObj = playerIdMap[somePlayerId];
+            if (!localPlayerObj) {
+                // Register the player with the client                
+                playerIdMap[somePlayerId] = {
+                    playerId: somePlayerId,
+                    playerName: somePlayerObj["playerName"]
+                };
+                let picUrl = trySetRandomAvatar(somePlayerId);
+            }
+        }
+    }
 }
 
 function updateServerMsgBox(anyVal) {
@@ -169,4 +200,24 @@ function createClientMsg(request) {
         gameSessionId: sessionStorage.getItem("game-session-id"),
         request: request
     };
+}
+
+function getRandomAvatarUrl() {
+    let randPicNum = Util.randInt(17) + 1;
+    let picUrl = "assets/avatars/profile-" + randPicNum + ".png";
+    return picUrl;
+}
+
+// Generates a new avatar url for the playerId if there isn't an existing one
+function trySetRandomAvatar(playerId) {
+    let playerObj = playerIdMap[playerId];
+    if (!playerObj) {
+        playerObj = {};
+    }
+    if (!playerObj.profileUrl) {
+        let picUrl = getRandomAvatarUrl();
+        playerObj.profileUrl = picUrl;
+    }
+    playerIdMap[playerId] = playerObj;
+    return playerObj.profileUrl;
 }

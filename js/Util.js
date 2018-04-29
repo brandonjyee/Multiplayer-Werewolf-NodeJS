@@ -1,5 +1,6 @@
 var Util = {};
 
+// Returns a random integer from 0 to (max - 1)
 Util.randInt = function(max) {
     return Math.floor(Math.random() * max);
 };

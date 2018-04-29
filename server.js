@@ -158,7 +158,10 @@ function processAskGameId(socket, clientMsg) {
     let serverMsg = createServerMsg("game-session-id", gameSessionId);
     socket.emit("server-update", serverMsg);
 
-    sendPlayerStats(socket, clientMsg.clientId);
+    // sendPlayerStats(socket, clientMsg.clientId);
+
+    // Update all players in the game (if any) of this new player connecting
+    sendPlayerStatsToAll(gameSessionId);
 
     // Send client game stats at regular intervals
     //let intervalId = setInterval(clientGameStatsFn(socket, clientId, gameSessionId), timesPerSecToMs(1));
@@ -354,16 +357,11 @@ function sendMsgToPlayer(socket, msg) {
 }
 
 function sendMsgToAllPlayers(gameId, msg) {
-    let sockets = gs.getPlayerSockets(gameId);
-    for (let socket of sockets) {
+    let socketObjs = gs.getPlayerSockets(gameId);
+    for (let socketObj of socketObjs) {
+        let socket = socketObj.socket;
         sendMsgToPlayer(socket, msg);
     }
-    // let game = gs.games[gameId];
-    // let playerIds = game.getPlayerIds(); //Object.keys(game.players);
-    // for (let playerId of playerIds) {
-    //     let socket = gs.playerToSocketMap[playerId];
-    //     sendMsgToPlayer(socket, msg);
-    // }
 }
 
 function sendPlayerStats(socket, playerId) {
@@ -375,8 +373,10 @@ function sendPlayerStats(socket, playerId) {
 
 // Update all clients in the game
 function sendPlayerStatsToAll(gameId) {
-    let sockets = gs.getPlayerSockets(gameId);
-    for (let socket of sockets) {
+    let socketsArr = gs.getPlayerSockets(gameId);
+    for (let socketObj of socketsArr) {
+        let playerId = socketObj.playerId;
+        let socket = socketObj.socket;
         sendPlayerStats(socket, playerId);
     }
     // let game = gs.games[gameId];

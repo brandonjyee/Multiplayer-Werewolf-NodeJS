@@ -61,6 +61,12 @@ html, body {
     z-index: -5;
 }
 
+img.player-pic {
+    height: 50px;
+    width: auto;
+    content: url("assets/avatars/profile-locked.png");
+}
+
 img.role-card-img {
     height: 100px;
     width: auto;
@@ -100,7 +106,7 @@ img.role-card-img {
     text-align: center;
 }
 
-#game-msg-box {
+#game-center-col {
     float: left;
     width: 60%;
     text-align: center;

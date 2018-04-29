@@ -253,13 +253,17 @@ GameServer.processRoleInputs = function(gameId) {
 
 }
 
+// Returns array of objects: { playerId, socket}
 GameServer.getPlayerSockets = function(gameId) {
     let sockets = [];
     let game = GameServer.games[gameId];
     let playerIds = game.getPlayerIds(); 
     for (let playerId of playerIds) {
         let socket = GameServer.playerToSocketMap[playerId];
-        sockets.push(socket);
+        sockets.push({
+            playerId: playerId,
+            socket: socket
+        });
     }
     return sockets;
 }

@@ -5,7 +5,7 @@
 
     <link rel="stylesheet" href="/client-styles.css">
     
-    <h1><center>Welcome to Ultimate Werewolf</center></h1>
+    <h1><center>Welcome to One Night Ultimate Werewolf</center></h1>
   </head>
   <body>
     <div id="bg-image">
@@ -23,7 +23,8 @@
           <p>
             <span class="header">Step 1: Client connects to server</span><br>
             Client ID: <span class="client-id display"></span><br>
-            <input id="client-name" type="text" placeholder="Enter name" value=""></input><br>
+            <img class="player-pic"></img><br>
+            <input id="client-name" type="text" placeholder="Enter name" value=""></input><br>            
             <button id="connect-to-server" type="button">Connect to Server</button>
           </p>
           <p>
@@ -77,31 +78,41 @@
             </div>
             <div id="players-col-1">
               
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
+              <img id="player1" class="player-img"></img>
+              <img id="player2" class="player-img"></img>
+              <img id="player3" class="player-img"></img>
+              <img id="player4" class="player-img"></img>
+              <img id="player5" class="player-img"></img>
+              <img id="player6" class="player-img"></img>
+              <img id="player7" class="player-img"></img>
 
             </div>
-            <div id="game-msg-box">
-              game-msg-box
+
+            <div id="game-center-col">
+              <div id="center-cards">
+                center cards
+              </div>
+              <div id="game-msg-box">
+                game-msg-box
+              </div>
             </div>
+
             <div id="players-col-2">
 
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
-              <img class="player-img"></img>
+              <img id="player8" class="player-img"></img>
+              <img id="player9" class="player-img"></img>
+              <img id="player10" class="player-img"></img>
+              <img id="player11" class="player-img"></img>
+              <img id="player12" class="player-img"></img>
+              <img id="player13" class="player-img"></img>
+              <img id="player14" class="player-img"></img>
 
             </div>
-            <div id="game-footer">
-              asdflssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+            <div id="game-footer">              
+              <center>
+                =========================================
+                <button type="button">Microphone</button>
+              </center>
             </div>
           </div>
 
@@ -111,7 +122,7 @@
       <div class="column">
 
         <div id="stats-box">
-          Stats Box <br>
+          <span style="width:100%;text-align:right;font-weight:bold;">Stats Box</span><br>
           Client ID: <span class="client-id display"></span><br>
           Game Session ID: <span class="game-session-id display"></span><br>
           Num Players in Game: <span class="num-players-in-game display"></span><br>

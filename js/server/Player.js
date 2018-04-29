@@ -4,6 +4,7 @@ var GameServer = require('./GameServer.js').GameServer;
 function Player(name) {
     this.id = "";
     this.name = name;
+    this.avatar = null;
     this.gameSession = null;
     this.roleCard = null;
     this.actions = null;
