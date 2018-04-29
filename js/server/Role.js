@@ -49,7 +49,6 @@ Role.generateRandomDeck = function(numPlayers) {
     } 
     if (numPlayers >= 5) {
         cards.push(Role.VILLAGER);
-        cards.push(Role.VILLAGER);
     } 
     if (numPlayers > 5) {
         numCards -= cards.length;
@@ -61,6 +60,33 @@ Role.generateRandomDeck = function(numPlayers) {
 
     Util.shuffle(cards);
     return cards;
+}
+
+Role.getFullDeck = function() {
+    let retArr = [];
+    // 16 cards total
+    // 1 doppelganger
+    // TODO
+    // 2 werewolves
+    retArr.push(Role.WEREWOLF, Role.WEREWOLF);
+    // 1 minion
+    // TODO
+    // 2 masons
+    // TODO
+    // 1 seer
+    retArr.push(Role.SEER);
+    // 1 robber
+    retArr.push(Role.ROBBER);
+    // 1 troublemaker
+    retArr.push(Role.TROUBLEMAKER);
+    // 1 drunk
+    // TODO
+    // 1 insomniac
+    // TODO
+    // 3 villagers
+    retArr.push(Role.VILLAGER, Role.VILLAGER, Role.VILLAGER);
+    // 1 hunter
+    // 1 tanner
 }
 
 

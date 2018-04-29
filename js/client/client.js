@@ -73,19 +73,11 @@ function processUpdateRole(serverMsg) {
     sessionStorage.setItem("role-card", roleCard);
     $(".role-card").text(roleCard);
     // Update role card bg
-    let imgUrl = "assets/roles/";
     console.log("roleCard: " + roleCard);
-    if (roleCard === "robber") {
-        imgUrl += "robber.png";
-    } else if (roleCard === "troublemaker") {
-        imgUrl += "troublemaker.png";
-    } else if (roleCard === "villager") {
-        imgUrl += "villager.png";
-    } else if (roleCard === "werewolf") {
-        imgUrl += "werewolf.png";
-    }
+    let imgUrl = RoleMap[roleCard].getImgUrl();
     imgUrl = "url(" + imgUrl + ")";
-    $("#bg-role-card").css("background-image", imgUrl);
+    // $("#bg-role-card").css("background-image", imgUrl);
+    $("img.role-card-img").css("content", imgUrl);
 }
 
 function processAnnouncerMsg(serverMsg) {
@@ -95,84 +87,86 @@ function processAnnouncerMsg(serverMsg) {
 }
 
 function processDoRoleAction(serverMsg) {
-let role = serverMsg.role;
-let playerInstructions = serverMsg.playerInstructions;
-let data = serverMsg.data;
-// TODO
-$(".role-instructions").text(playerInstructions);
-$(".role-data").text(data);
+    let roleStr = serverMsg.role;
+    let role = RoleMap[roleStr];
+    //let playerInstructions = serverMsg.playerInstructions;
+    let data = serverMsg.data;
+    
+    $(".role-instructions").text(role.instructions);
+    $(".role-data").text(data);
 
-if (role === "werewolf") {
+    if (role === "werewolf") {
 
-} else if (role === "") {
+    } else if (role === "") {
 
-}
+    }
 }
 
 function processErrorMsg(serverMsg) {
-let msg = serverMsg.data;
-// TODO       
+    let msg = serverMsg.data;
+    // TODO       
 }
 
 function processGameStats(serverMsg) {
-let stats = serverMsg.data;
-let clientId = stats["clientId"];
-let gameId = stats["gameId"];
-let numPlayers = stats["numPlayers"];
-let gameState = stats["gameState"];
-let roleCard = stats["roleCard"];
-let allCards = stats["allCards"];
+    let stats = serverMsg.data;
+    let playerName = stats["playerName"];
+    let clientId = stats["clientId"];
+    let gameId = stats["gameId"];
+    let numPlayers = stats["numPlayers"];
+    let gameState = stats["gameState"];
+    let roleCard = stats["roleCard"];
+    let allCards = stats["allCards"];
 
-if (!!clientId) { $(".client-id").text(clientId); }
-if (!!gameId) { $(".game-session-id").text(gameId); }
-if (!!numPlayers) { $(".num-players-in-game").text(numPlayers); }
-if (!!gameState) { $(".game-state").text(gameState); }
-if (!!roleCard) { $(".role-card").text(roleCard); }
-if (!!allCards) { $(".all-cards").text(allCards.join("|")); }
+    if (!!clientId) { $(".client-id").text(clientId); }
+    if (!!gameId) { $(".game-session-id").text(gameId); }
+    if (!!numPlayers) { $(".num-players-in-game").text(numPlayers); }
+    if (!!gameState) { $(".game-state").text(gameState); }
+    if (!!roleCard) { $(".role-card").text(roleCard); }
+    if (!!allCards) { $(".all-cards").text(allCards.join("|")); }
 }
 
 function updateServerMsgBox(anyVal) {
-if (!!anyVal) {
-    $(".server-msgs").prepend(Util.getTimestamp() + " Received: " + Util.pp(anyVal) + "\n");
-}
+    if (!!anyVal) {
+        $(".server-msgs").prepend(Util.getTimestamp() + " Received: " + Util.pp(anyVal) + "\n");
+    }
 }
 
 $("#clear-local-data").click( function() {
-sessionStorage.clear();
+    sessionStorage.clear();
 });
 
 $("#connect-to-server").click( function() {
-console.log("connect to server button clicked.");
-let clientMsg = createClientMsg("client-id");
-clientMsg.name = $("#client-name").text;
-socket.emit("ask-server", clientMsg);
+    console.log("connect to server button clicked.");
+    let clientMsg = createClientMsg("client-id");
+    clientMsg["playerName"] = $("#client-name").val();
+    socket.emit("ask-server", clientMsg);
 });
 
 $("#join-game").click( function() {
-let clientMsg = createClientMsg("game-id");
-socket.emit("ask-server", clientMsg);
+    let clientMsg = createClientMsg("game-id");
+    socket.emit("ask-server", clientMsg);
 });
 
 $("#start-game").click( function() {
-let clientMsg = createClientMsg("start-game");
-socket.emit("ask-server", clientMsg);
+    let clientMsg = createClientMsg("start-game");
+    socket.emit("ask-server", clientMsg);
 
-// clientMsg = createClientMsg("stats|numPlayersInGame");
-// socket.emit("ask-server", clientMsg, function(data) {
-//   $(".num-players-in-game").text(data);
-// });
+    // clientMsg = createClientMsg("stats|numPlayersInGame");
+    // socket.emit("ask-server", clientMsg, function(data) {
+    //   $(".num-players-in-game").text(data);
+    // });
 });
 
 $("#do-game-action").click( function() {
-let clientMsg = createClientMsg("did-role-action");
-socket.emit("ask-server", clientMsg);
+    let clientMsg = createClientMsg("did-role-action");
+    socket.emit("ask-server", clientMsg);
 });
 
 // Create the client msg to send to server
 function createClientMsg(request) {
-return {
-    clientId: sessionStorage.getItem("client-id"),
-    gameSessionId: sessionStorage.getItem("game-session-id"),
-    request: request
-};
+    return {
+        clientId: sessionStorage.getItem("client-id"),
+        gameSessionId: sessionStorage.getItem("game-session-id"),
+        request: request
+    };
 }

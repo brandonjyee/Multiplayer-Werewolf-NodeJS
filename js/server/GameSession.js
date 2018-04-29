@@ -5,7 +5,7 @@ function GameSession(id) {
     // Map of playerIds to players
     this.players = {};
     this.minPlayers = 3;
-    this.maxPlayers = 10;
+    this.maxPlayers = 5; // Don't know what deck to make past 5 players
     this.state = GameState.WAIT_TO_START;
     // For functions to coordinate processing. Ensure a game state isn't processed multiple times
     this.processingStateLock = {};
@@ -19,6 +19,19 @@ GameSession.prototype.getNumPlayers = function() {
     return Object.keys(this.players).length;
 }
 
+// Just get name and id
+GameSession.prototype.getPlayerData_Basic = function() {
+    let retArr = [];
+    let players = this.getPlayers();
+    for (let player of players) {
+        retArr.push({
+            playerName: player.getName(),
+            playerId: player.getId()
+        });
+    }
+    return retArr;
+}
+
 // Accepts either a player or a playerId
 GameSession.prototype.hasPlayer = function(player) {
     let playerId = player;
@@ -30,6 +43,15 @@ GameSession.prototype.hasPlayer = function(player) {
 
 GameSession.prototype.getPlayerIds = function() {
     return Object.keys(this.players);
+}
+
+GameSession.prototype.getPlayers = function() {
+    let retArr = [];
+    let playerIds = this.getPlayerIds();
+    for (let playerId of playerIds) {
+        retArr.push(this.players[playerId]);
+    }
+    return retArr;
 }
 
 GameSession.prototype.tryGetProcessingLock = function(state) {

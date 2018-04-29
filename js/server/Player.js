@@ -25,4 +25,12 @@ Player.prototype.getCardAsStr = function() {
     return "";
 }
 
+Player.prototype.getId = function() {
+    return this.id;
+}
+
+Player.prototype.getName = function() {
+    return this.name;
+}
+
 module.exports.Player = Player;

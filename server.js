@@ -14,6 +14,10 @@ app.get('/', function(req, res) {
     res.sendFile(__dirname + '/index.html');
 });
 
+app.get('/client-styles.css', function(req, res) {
+    res.sendFile(__dirname + '/client-styles.css');
+});
+
 // The admin page
 app.get('/admin', function(req, res) {
     res.sendFile(__dirname + '/admin.html');
@@ -116,7 +120,7 @@ function createServerMsg(type, data) {
 
 function processAskClientId(socket, clientMsg) {
     console.log("client asked for client id. Param: " + Util.pp(clientMsg));
-    let playerName = clientMsg.clientName;
+    let playerName = clientMsg.playerName;
     let playerId = clientMsg.clientId;
     if (!playerId) {
         playerId = gs.generatePlayerId();
@@ -326,7 +330,7 @@ function createPlayerGameStatsData(clientId) {
         return stats;
     }
     stats["clientId"] = clientId;
-    stats["clientName"] = player.name;
+    stats["playerName"] = player.name;
 
     let game = player.gameSession;
     if (!game) {
@@ -336,6 +340,7 @@ function createPlayerGameStatsData(clientId) {
 
     let numPlayers = game.getNumPlayers();
     stats["numPlayers"] = numPlayers;
+    stats["playersInGame"] = game.getPlayerData_Basic();
     stats["gameState"] = game.state.name;    
     stats["roleCard"] = player.getCardAsStr();
     console.log("role card: " + Util.pp(player.getCardAsStr()));
