@@ -3,6 +3,7 @@
 // };
 // Client.socket = io.connect();
 
+
 // Check if client support Web Storage. Need it to store data
 if (typeof(Storage) === "undefined") {
     console.log("Error: No Web Storage support!");
@@ -10,13 +11,25 @@ if (typeof(Storage) === "undefined") {
 // Create web socket connection
 let socket = io();
 
-// Check existing session storage for data. 
+// Check existing session storage for data.
 let clientId = sessionStorage.getItem("client-id");
 let gameSessionId = sessionStorage.getItem("game-session-id");
 
-// Map of playerId to an obj containing info related to player: 
+// Map of playerId to an obj containing info related to player:
 // profile-pic, player number, etc
-let playerIdMap = {};
+var playerIdMap = {};
+
+// playerIdMap["test-id"] = {
+//     playerName: "testName",
+//     playerId: "test-id"
+// };
+// playerIdMap["test-id2"] = {
+//     playerName: "testName2",
+//     playerId: "test-id2"
+// };
+// Seer.displayActionChoices();
+// Seer.lockInChoice();
+
 
 // Populate text box(es) with random data
 $("#client-name").val(faker.name.findName());
@@ -31,30 +44,30 @@ socket.on("server-update", function(serverMsg) {
 
 function processServerUpdate(serverMsg) {
 
-    // Log the msg to the server message box so we can see it 
+    // Log the msg to the server message box so we can see it
     updateServerMsgBox(serverMsg);
 
     let type = serverMsg.type;
-    // console.log("Received server-update. " + pp(serverMsg));              
-    if (type === "client-id") {
+    // console.log("Received server-update. " + pp(serverMsg));
+    if (type === MsgType.Server.GiveClientId) {//"client-id") {
         processUpdateClientId(serverMsg);
-    } else if (type === "game-session-id") {
+    } else if (type === MsgType.Server.GiveGameId) {//"game-session-id") {
         processUpdateGameId(serverMsg);
     } else if (type === "game-started") {
         // processGameStarted(serverMsg);
         // TODO. Countdown to start. Switch daylight bg to night
-    } else if (type === "give-role") {
+    } else if (type === MsgType.Server.GiveRole) {//"give-role") {
         processUpdateRole(serverMsg);
-    } else if (type === "announcer-msg") {
+    } else if (type === MsgType.Server.AnnouncerMsg) {//"announcer-msg") {
         processAnnouncerMsg(serverMsg);
-    } else if (type === "do-role-action") {
+    } else if (type === MsgType.Server.AskDoRoleAction) {//"do-role-action") {
         processDoRoleAction(serverMsg);
     } else if (type === "error-msg") {
         processErrorMsg(serverMsg);
     }
-    else if (type === "stats") {
+    else if (type === MsgType.Server.GiveStats) {//"stats") {
         processGameStats(serverMsg);
-    } 
+    }
     else {
         console.log("Unknown server update type: " + type);
     }
@@ -106,20 +119,19 @@ function processDoRoleAction(serverMsg) {
     let role = RoleMap[roleStr];
     //let playerInstructions = serverMsg.playerInstructions;
     let data = serverMsg.data;
-    
+
     $(".role-instructions").text(role.instructions);
     $(".role-data").text(data);
 
-    if (role === "werewolf") {
+    printPlayerMap();
+    console.log("Displaying action choices for role: " + roleStr);
+    role.displayActionChoices(data);
 
-    } else if (role === "") {
-
-    }
 }
 
 function processErrorMsg(serverMsg) {
     let msg = serverMsg.data;
-    // TODO       
+    // TODO
 }
 
 function processGameStats(serverMsg) {
@@ -133,31 +145,46 @@ function processGameStats(serverMsg) {
     let allCards = stats["allCards"];
     let playersInGame = stats["playersInGame"];
 
-    if (!!clientId) { $(".client-id").text(clientId); }
-    if (!!gameId) { $(".game-session-id").text(gameId); }
-    if (!!numPlayers) { $(".num-players-in-game").text(numPlayers); }
-    if (!!gameState) { $(".game-state").text(gameState); }
-    if (!!roleCard) { $(".role-card").text(roleCard); }
-    if (!!allCards) { $(".all-cards").text(allCards.join("|")); }
-    if (!!playersInGame) {
+    if (clientId) { $(".client-id").text(clientId); }
+    if (gameId) { $(".game-session-id").text(gameId); }
+    if (numPlayers) { $(".num-players-in-game").text(numPlayers); }
+    if (gameState) { $(".game-state").text(gameState); }
+    if (roleCard) { $(".role-card").text(roleCard); }
+    if (allCards) { $(".all-cards").text(allCards.join("|")); }
+    if (playersInGame) {
         // Check if player is new or already registered with the client
         for (let somePlayerObj of playersInGame) {
-            let somePlayerId = somePlayerObj["playerId"];
-            let localPlayerObj = playerIdMap[somePlayerId];
-            if (!localPlayerObj) {
-                // Register the player with the client                
-                playerIdMap[somePlayerId] = {
-                    playerId: somePlayerId,
-                    playerName: somePlayerObj["playerName"]
-                };
-                let picUrl = trySetRandomAvatar(somePlayerId);
-            }
+            // let somePlayerId = somePlayerObj["playerId"];
+            // let localPlayerObj = playerIdMap[somePlayerId];
+            // if (!localPlayerObj) {
+            //     // Register the player with the client
+            //     playerIdMap[somePlayerId] = {
+            //         playerId: somePlayerId,
+            //         playerName: somePlayerObj["playerName"]
+            //     };
+            //     let picUrl = trySetRandomAvatar(somePlayerId);
+            // }
+            // let somePlayerName = somePlayerObj.playerName;
+            let somePlayerId = somePlayerObj.playerId;
+            playerIdMap[somePlayerId] = somePlayerObj;
+            // console.log("setting playerIdMap. playerId: " + somePlayerId + " obj: " + Util.pp(somePlayerObj));
+            // console.log("playerIdMap[id]: " + Util.pp(playerIdMap[somePlayerId]));
+            // printPlayerMap();
+
+            let allplayers = getAllPlayers();
+            console.log("allplayers: " + Util.pp(allplayers));
+            let allplayerIds = getAllPlayerIds();
+            console.log("allplayerIds: " + Util.pp(allplayerIds));
+            let otherPlayerIds = getOtherPlayerIds();
+            console.log("otherPlayerIds: " + Util.pp(otherPlayerIds));
+            printPlayerMap();
         }
+
     }
 }
 
 function updateServerMsgBox(anyVal) {
-    if (!!anyVal) {
+    if (anyVal) {
         $(".server-msgs").prepend(Util.getTimestamp() + " Received: " + Util.pp(anyVal) + "\n");
     }
 }
@@ -181,11 +208,6 @@ $("#join-game").click( function() {
 $("#start-game").click( function() {
     let clientMsg = createClientMsg("start-game");
     socket.emit("ask-server", clientMsg);
-
-    // clientMsg = createClientMsg("stats|numPlayersInGame");
-    // socket.emit("ask-server", clientMsg, function(data) {
-    //   $(".num-players-in-game").text(data);
-    // });
 });
 
 $("#do-game-action").click( function() {
@@ -220,4 +242,34 @@ function trySetRandomAvatar(playerId) {
     }
     playerIdMap[playerId] = playerObj;
     return playerObj.profileUrl;
+}
+
+// Returns list of players in game
+function getAllPlayers() {
+    let retArr = [];
+    let playerIds = getAllPlayerIds();
+    for (let playerId of playerIds) {
+        retArr.push(playerIdMap[playerId]);
+    }
+    return retArr;
+}
+
+function getAllPlayerIds() {
+    let playerIds = Object.keys(playerIdMap);
+    return playerIds;
+}
+
+function getOtherPlayerIds() {
+    let mapCopy = Object.assign({}, playerIdMap);
+    // console.log("mapCopy: " + Util.pp(mapCopy));
+    delete mapCopy[clientId];
+    // console.log("mapCopy after delete: " + Util.pp(mapCopy));
+    let keys = Object.keys(mapCopy);
+    // console.log("mapCopy keys: " + keys);
+    return Object.keys(mapCopy);
+}
+
+function printPlayerMap() {
+    console.log("Printing playerMap: ");
+    console.log(Util.pp(playerIdMap));
 }

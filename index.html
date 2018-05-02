@@ -1,147 +1,186 @@
 <!doctype html>
 <html>
-  <head>
-    <title>Ultimate Werewolf</title>
 
-    <link rel="stylesheet" href="/client-styles.css">
-    
-    <h1><center>Welcome to One Night Ultimate Werewolf</center></h1>
-  </head>
-  <body>
-    <div id="bg-image">
+<head>
+  <title>Ultimate Werewolf</title>
+
+  <link rel="stylesheet" href="/client-styles.css">
+
+  <h1>
+    <center>Welcome to One Night Ultimate Werewolf</center>
+  </h1>
+</head>
+
+<body>
+  <div id="bg-image">
+  </div>
+  <div id="bg-role-card">
+  </div>
+
+  <div class="row">
+    <div class="column">
+
+      <p>
+        Server sent number:
+        <span id="displaynum">no data yet</span>
+        <br>
+        <button id="clear-local-data" type="button">Clear Local Data</button>
+      </p>
+      <p>
+        <span class="header">Step 1: Client connects to server</span>
+        <br> Client ID:
+        <span class="client-id display"></span>
+        <br>
+        <img class="player-pic"></img>
+        <br>
+        <input id="client-name" type="text" placeholder="Enter name" value=""></input>
+        <br>
+        <button id="connect-to-server" type="button">Connect to Server</button>
+      </p>
+      <p>
+        <span class="header">Step 2: Client requests to join a game</span>
+        <br> Game Session ID:
+        <span class="game-session-id display"></span>
+        <br>
+        <button id="join-game" type="button">Join a Game</button>
+      </p>
+      <p>
+        <span class="header">Step 3: Game starts. Each player receives their role card</span>
+        <br> Role Card:
+        <span class="role-card display"></span>
+        <br>
+        <img class="role-card-img"></img>
+        <br> Num Players in Game:
+        <span class="num-players-in-game display"></span>
+        <br>
+        <button id="start-game" type="button">Start Game</button>
+      </p>
+      <p>
+        <span class="header">Step 4: Announcer directs the turns for the Night Phase.</span>
+        <br> Announcer Messages:
+        <span class="announcer-msgs display"></span>
+        <br> Role Instructions:
+        <span class="role-instructions display"></span>
+        <br> Role Data:
+        <span class="role-data display"></span>
+        <br> Time To Do Action:
+        <span id="time-to-do-action"></span>
+        <br> Action Choices:
+        <br>
+        <span id="action-choices" class="display"></span>
+        <br>
+        <button id="do-game-action" type="button">Lock in Your Choice</button>
+      </p>
+      <p>
+        <span class="header">Step 5: Showing Results of the Night Phase</span>
+        <br> Result of Your Action:
+        <span class="action-result"></span>
+      </p>
+      <p>
+        <span class="header">Step 6: Players discuss who should be killed. Each player votes.</span>
+        <br>
+        <div>
+          Voting Options:
+          <div id="vote-choices">
+            <input type="radio" value="" disabled>Waiting for choices to be available...</input>
+          </div>
+          <button type="button">Lock In Vote</button>
+        </div>
+      </p>
+      <p>
+        <span class="header">Step 7: Show voting results. Also, show who won and who lost.</span>
+        <br> Voting Results:
+        <span class="voting-results"></span>
+        <br> Did you win?:
+        <span class="game-result"></span>
+      </p>
+
     </div>
-    <div id="bg-role-card">      
-    </div>
+    <div class="column">
+      <!-- <center><b>Game Board</b></center> -->
+      <div id="game-container">
 
-    <div class="row">
-      <div class="column">
+        <div id="game-board">
+          <div id="game-header">
+            <img class="bg"></img>
+          </div>
+          <div id="players-col-1">
 
-          <p>
-            Server sent number: <span id="displaynum">no data yet</span><br>
-            <button id="clear-local-data" type="button">Clear Local Data</button>
-          </p>
-          <p>
-            <span class="header">Step 1: Client connects to server</span><br>
-            Client ID: <span class="client-id display"></span><br>
-            <img class="player-pic"></img><br>
-            <input id="client-name" type="text" placeholder="Enter name" value=""></input><br>            
-            <button id="connect-to-server" type="button">Connect to Server</button>
-          </p>
-          <p>
-            <span class="header">Step 2: Client requests to join a game</span><br>
-            Game Session ID: <span class="game-session-id display"></span><br>
-            <button id="join-game" type="button">Join a Game</button>
-          </p>
-          <p>
-            <span class="header">Step 3: Game starts. Each player receives their role card</span><br>
-            Role Card: <span class="role-card display"></span><br>
-            <img class="role-card-img"></img><br>
-            Num Players in Game: <span class="num-players-in-game display"></span><br>
-            <button id="start-game" type="button">Start Game</button>
-          </p>
-          <p>
-            <span class="header">Step 4: Announcer directs the turns for the Night Phase.</span><br>
-            Announcer Messages: <span class="announcer-msgs display"></span><br>
-            Role Instructions: <span class="role-instructions display"></span><br>
-            Role Data: <span class="role-data display"></span><br>
-            Time To Do Action: <span id="time-to-do-action"></span><br>
-            <button id="do-game-action" type="button">Lock in Your Choice</button>
-          </p>
-          <p>
-            <span class="header">Step 5: Showing Results of the Night Phase</span><br>
-            Result of Your Action: <span class="action-result"></span>
-          </p>
-          <p>
-            <span class="header">Step 6: Players discuss who should be killed. Each player votes.</span><br>
-            <div>
-            Voting Options: 
-              <div id="vote-choices">
-                <input type="radio" value="" disabled>Waiting for choices to be available...</input>     
-              </div>
-              <button type="button">Lock In Vote</button>
+            <img id="player1" class="player-img"></img>
+            <img id="player2" class="player-img"></img>
+            <img id="player3" class="player-img"></img>
+            <img id="player4" class="player-img"></img>
+            <img id="player5" class="player-img"></img>
+            <img id="player6" class="player-img"></img>
+            <img id="player7" class="player-img"></img>
+
+          </div>
+
+          <div id="game-center-col">
+            <div id="center-cards">
+              center cards
             </div>
-          </p>
-          <p>
-            <span class="header">Step 7: Show voting results. Also, show who won and who lost.</span><br>
-            Voting Results: <span class="voting-results"></span><br>
-            Did you win?: <span class="game-result"></span>
-          </p>
-
-      </div>
-      <div class="column">
-          <!-- <center><b>Game Board</b></center> -->
-        <div id="game-container">
-          
-          <div id="game-board">
-            <div id="game-header">
-              <img class="bg"></img>
-            </div>
-            <div id="players-col-1">
-              
-              <img id="player1" class="player-img"></img>
-              <img id="player2" class="player-img"></img>
-              <img id="player3" class="player-img"></img>
-              <img id="player4" class="player-img"></img>
-              <img id="player5" class="player-img"></img>
-              <img id="player6" class="player-img"></img>
-              <img id="player7" class="player-img"></img>
-
-            </div>
-
-            <div id="game-center-col">
-              <div id="center-cards">
-                center cards
-              </div>
-              <div id="game-msg-box">
-                game-msg-box
-              </div>
-            </div>
-
-            <div id="players-col-2">
-
-              <img id="player8" class="player-img"></img>
-              <img id="player9" class="player-img"></img>
-              <img id="player10" class="player-img"></img>
-              <img id="player11" class="player-img"></img>
-              <img id="player12" class="player-img"></img>
-              <img id="player13" class="player-img"></img>
-              <img id="player14" class="player-img"></img>
-
-            </div>
-            <div id="game-footer">              
-              <center>
-                =========================================
-                <button type="button">Microphone</button>
-              </center>
+            <div id="game-msg-box">
+              game-msg-box
             </div>
           </div>
 
+          <div id="players-col-2">
+
+            <img id="player8" class="player-img"></img>
+            <img id="player9" class="player-img"></img>
+            <img id="player10" class="player-img"></img>
+            <img id="player11" class="player-img"></img>
+            <img id="player12" class="player-img"></img>
+            <img id="player13" class="player-img"></img>
+            <img id="player14" class="player-img"></img>
+
+          </div>
+          <div id="game-footer">
+            <center>
+              =========================================
+              <button type="button">Microphone</button>
+            </center>
+          </div>
         </div>
 
       </div>
-      <div class="column">
 
-        <div id="stats-box">
-          <span style="width:100%;text-align:right;font-weight:bold;">Stats Box</span><br>
-          Client ID: <span class="client-id display"></span><br>
-          Game Session ID: <span class="game-session-id display"></span><br>
-          Num Players in Game: <span class="num-players-in-game display"></span><br>
-          Game State: <span class="game-state display"></span><br>      
-          Role Card: <span class="role-card display"></span><br>
-          All Cards: <span class="all-cards display"></span><br>
-          Server Messages: <br>
-          <textarea class="server-msgs"></textarea>
-        </div>
-    
+    </div>
+    <div class="column">
 
-      </div> <!-- close column-->
-    </div> <!-- close row -->
+      <div id="stats-box">
+        <span style="width:100%;text-align:right;font-weight:bold;">Stats Box</span>
+        <br> Client ID:
+        <span class="client-id display"></span>
+        <br> Game Session ID:
+        <span class="game-session-id display"></span>
+        <br> Num Players in Game:
+        <span class="num-players-in-game display"></span>
+        <br> Game State:
+        <span class="game-state display"></span>
+        <br> Role Card:
+        <span class="role-card display"></span>
+        <br> All Cards:
+        <span class="all-cards display"></span>
+        <br> Server Messages:
+        <br>
+        <textarea class="server-msgs"></textarea>
+      </div>
 
-  </body>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
-  <script src="https://cdn.rawgit.com/Marak/faker.js/220e5cbf/build/build/faker.min.js"></script>
-  <script src="js/Util.js" type="text/javascript"></script>
-  <script src="js/client/Role_client.js" type="text/javascript"></script>
-  <script src="js/client/client.js" type="text/javascript"></script>
+
+    </div>
+    <!-- close column-->
+  </div>
+  <!-- close row -->
+
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<script src="https://cdn.rawgit.com/Marak/faker.js/220e5cbf/build/build/faker.min.js"></script>
+<script src="js/Util.js" type="text/javascript"></script>
+<script src="js/MsgType.js" type="text/javascript"></script>
+<script src="js/client/Role_client.js" type="text/javascript"></script>
+<script src="js/client/client.js" type="text/javascript"></script>
+
 </html>

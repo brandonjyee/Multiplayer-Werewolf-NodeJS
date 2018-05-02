@@ -5,6 +5,14 @@ Util.randInt = function(max) {
     return Math.floor(Math.random() * max);
 };
 
+// Removes first occurrence of elem in array
+Util.removeElemFromArr = function(arr, elem) {
+    let index = arr.indexOf(elem);
+    if (index >= 0) {
+        arr.splice(index, 1);
+    }
+}
+
 // Pretty print an object
 Util.pp = function(obj) {
     return JSON.stringify(obj, undefined, 2);
@@ -39,7 +47,7 @@ Util.shuffle = function (a) {
 
 /**
  * Shuffles array in place. Fisher-Yates algo. ES6 version
- * Currently slower b/c of destructuring assignment as of 2017. 
+ * Currently slower b/c of destructuring assignment as of 2017.
  * Wait til browsers optimize for it.
  * @param {Array} a items An array containing the items.
  */

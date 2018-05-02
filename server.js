@@ -4,6 +4,7 @@ var server = require('http').Server(app);
 var io = require('socket.io').listen(server);
 var gs = require('./js/server/GameServer.js').GameServer;
 var Role = require('./js/server/Role.js').Role;
+var MsgType = require('./js/MsgType.js').MsgType;
 var Util = require('./js/Util.js').Util;
 var util = require('util');
 
@@ -30,9 +31,9 @@ app.use('/js', express.static(__dirname + '/js'));
 // The client accesses the http server to get the web page that contains the client code
 // Once the page loads the client code, the client will attempt to establish a websocket
 // connection to the server
-server.listen(8081, function() { 
+server.listen(8081, function() {
     console.log('Listening on ' + server.address().port);
-    
+
     // This represents the main server loop that executes at regular intervals
     setInterval(gameLoopFn, timesPerSecToMs(5));
     // Send overall server stats at regular intervals
@@ -57,7 +58,7 @@ var serverStatsFn = function() {
     stats.numSocketsConnected = server.getNumConnected();
     stats.numPlayers = gs.getNumPlayers();
     stats.numGames = gs.getNumGames();
-    
+
     io.emit("admin-server-stats", stats);
 };
 
@@ -91,19 +92,19 @@ function registerSocketEventListeners(socket) {
 function processServerRequest(socket, clientMsg, callback) {
     let requestArr = clientMsg.request.split("|");
     let request = requestArr[0];
-    if (request === "client-id") {
+    if (request === MsgType.Client.AskClientId) { //"client-id") {
         processAskClientId(socket, clientMsg);
-    } else if (request === "game-id") {
+    } else if (request === MsgType.Client.AskGameId) {//"game-id") {
         processAskGameId(socket, clientMsg);
-    } else if (request === "start-game") {
+    } else if (request === MsgType.Client.AskStartGame) {//"start-game") {
         processAskStartGame(socket, clientMsg);
-    } else if (request === "did-role-action") {
+    } else if (request === MsgType.Client.DidRoleAction) {//"did-role-action") {
         processRoleInput(socket, clientMsg);
-    } 
+    }
     // else if (request === "did-role-action") {
     //     processRoleAction
-    // } 
-    else if (request === "stats") {
+    // }
+    else if (request === MsgType.Client.AskStats) {//"stats") {
         processAskStats(socket, clientMsg, callback);
     }
     else {
@@ -131,7 +132,7 @@ function processAskClientId(socket, clientMsg) {
     // Generate a Player object to represent the player
     gs.addPlayer(playerId, playerName);
     // Send id to client
-    let serverMsg = createServerMsg("client-id", playerId);
+    let serverMsg = createServerMsg(MsgType.Server.GiveClientId, playerId);
     socket.emit("server-update", serverMsg);
 }
 
@@ -149,13 +150,13 @@ function processAskGameId(socket, clientMsg) {
             gameSessionId = gs.joinOpenGame(clientId);
         }
     }
-    // If client hasn't provided a gameId they'd like to join, server will provide one 
+    // If client hasn't provided a gameId they'd like to join, server will provide one
     else {
         console.log("need to generate gamesessionid for client");
         gameSessionId = gs.joinOpenGame(clientId);
     }
     console.log("sending gameSessionId: " + gameSessionId);
-    let serverMsg = createServerMsg("game-session-id", gameSessionId);
+    let serverMsg = createServerMsg(MsgType.Server.GiveGameId, gameSessionId);
     socket.emit("server-update", serverMsg);
 
     // sendPlayerStats(socket, clientMsg.clientId);
@@ -180,7 +181,7 @@ function processAskGameId(socket, clientMsg) {
 //     stats.numSocketsConnected = server.getNumConnected();
 //     stats.numPlayers = gs.getNumPlayers();
 //     stats.numGames = gs.getNumGames();
-    
+
 //     socket.emit("client-server-stats", stats);
 // }
 
@@ -190,7 +191,7 @@ function processAskStartGame(socket, clientMsg) {
     let started = gs.startGame(gameSessionId);
 
     sendPlayerStats(socket, clientMsg.clientId);
-    
+
     // Schedule for game to hand out role cards
     if (started) {
         setTimeout(giveRolesFn(gameSessionId), secToMs(2));
@@ -213,14 +214,14 @@ function giveRolesFn(gameId) {
                 console.error("No socket for player. playerId: " + playerId);
                 console.error("keys for playerToSocketMap: " + util.inspect(Object.keys(gs.playerToSocketMap)));
             }
-            let serverMsg = createServerMsg("give-role", roleCard.name);
+            let serverMsg = createServerMsg(MsgType.Server.GiveRole, roleCard.name);
             socket.emit("server-update", serverMsg);
 
-            sendPlayerStats(socket, playerId);            
+            sendPlayerStats(socket, playerId);
         }
 
-        // Schedule for game to handle the players doing their role action 
-        setTimeout(getRoleInputsFn(gameId), secToMs(4));  
+        // Schedule for game to handle the players doing their role action
+        setTimeout(getRoleInputsFn(gameId), secToMs(4));
     }
     return fn;
 }
@@ -230,18 +231,13 @@ var getRoleInputsFn = function(gameId) {
     let game = gs.games[gameId];
     let fn = function() {
         // Send to all clients "Everyone, close your eyes."
-        let serverMsg = createServerMsg("announcer-msg", "Everyone, close your eyes.");
+        let serverMsg = createServerMsg(MsgType.Server.AnnouncerMsg, "Everyone, close your eyes.");
         sendMsgToAllPlayers(gameId, serverMsg);
 
         // Send to each player, instructions specific to their role
         // Exact instructions will be client-side? Server, of course will validate
         // what the client sends. Actually, in the case of werewolves, need to know who
         // other werewolves are. Client could potentially ask to see other werewolves.
-        // let game = gs.games[gameId];
-        // let playerIds = game.getPlayerIds();
-        // for (let playerId of playerIds) {
-        //     let player = game.players[playerId];
-        // }
 
         game.forEachPlayer(function(player) {
             let data = "";
@@ -249,16 +245,16 @@ var getRoleInputsFn = function(gameId) {
             if (role === Role.WEREWOLF) {
                 // Get playerIds in game that have werewolf card
                 let werewolfIds = game.getPlayersWithRole(Role.WEREWOLF);
-                data = werewolfIds.join("|");
+                data = werewolfIds; //werewolfIds.join("|");
             }
-            serverMsg = createServerMsg("do-role-action", data);
+            serverMsg = createServerMsg(MsgType.Server.AskDoRoleAction, data);
             serverMsg.role = role.name;
             serverMsg.playerInstructions = role.action;
 
             let socket = gs.playerToSocketMap[player.id];
             socket.emit("server-update", serverMsg);
         });
-        
+
     };
     return fn;
 }
@@ -287,7 +283,7 @@ function processRoleInput(socket, clientMsg) {
             player.actions["action"] = actionData;
         }
     } else if (roleCard === "robber") {
-        // 
+        //
 
     } else if (roleCard === "troublemaker") {
 
@@ -344,11 +340,11 @@ function createPlayerGameStatsData(clientId) {
     let numPlayers = game.getNumPlayers();
     stats["numPlayers"] = numPlayers;
     stats["playersInGame"] = game.getPlayerData_Basic();
-    stats["gameState"] = game.state.name;    
+    stats["gameState"] = game.state.name;
     stats["roleCard"] = player.getCardAsStr();
     console.log("role card: " + Util.pp(player.getCardAsStr()));
     stats["allCards"] = game.getCardsAsStrArr();
-    
+
     return stats;
 }
 
@@ -366,7 +362,7 @@ function sendMsgToAllPlayers(gameId, msg) {
 
 function sendPlayerStats(socket, playerId) {
     let playerGameStats = createPlayerGameStatsData(playerId);
-    let serverMsg = createServerMsg("stats", playerGameStats);
+    let serverMsg = createServerMsg(MsgType.Server.GiveStats, playerGameStats);
     //socket.emit("server-update", serverMsg);
     sendMsgToPlayer(socket, serverMsg);
 }

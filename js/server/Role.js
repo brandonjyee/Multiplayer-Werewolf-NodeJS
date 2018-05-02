@@ -1,27 +1,31 @@
 var Util = require('../Util.js').Util;
 
-var Role = {
-    WEREWOLF: {
-        name: "werewolf",
-        action: "Open your eyes and see who are the other werewolves."
-    },
-    SEER: {
-        name: "seer",
-        action: "Look at another player's card or two of the center cards."
-    },
-    ROBBER: {
-        name: "robber",
-        action: "Exchange your card with another player's card. View your new card."
-    },
-    TROUBLEMAKER: {
-        name: "troublemaker",
-        action: "Exchange cards between two other players."
-    },
-    VILLAGER: {
-        name: "villager",
-        action: "You are fast asleep while others are scheming..."
-    }
-}
+var Role = {};
+
+Role.WEREWOLF = {
+    name: "werewolf",
+    action: "Open your eyes and see who are the other werewolves."
+};
+
+Role.SEER = {
+    name: "seer",
+    action: "Look at another player's card or two of the center cards."
+};
+
+Role.ROBBER = {
+    name: "robber",
+    action: "Exchange your card with another player's card. View your new card."
+};
+
+Role.TROUBLEMAKER = {
+    name: "troublemaker",
+    action: "Exchange cards between two other players."
+};
+
+Role.VILLAGER = {
+    name: "villager",
+    action: "You are fast asleep while others are scheming..."
+};
 
 Role.getRandomRole = function() {
     let roleKeys = Object.keys(Role);
@@ -50,13 +54,13 @@ Role.generateRandomDeck = function(numPlayers) {
     if (numPlayers >= 5) {
         cards.push(Role.VILLAGER);
     } 
-    if (numPlayers > 5) {
-        numCards -= cards.length;
-        while (numCards > 0) {
-            cards.push(Role.getRandomRole());
-            numCards--;
-        }
-    }
+    // if (numPlayers > 5) {
+    //     numCards -= cards.length;
+    //     while (numCards > 0) {
+    //         cards.push(Role.getRandomRole());
+    //         numCards--;
+    //     }
+    // }
 
     Util.shuffle(cards);
     return cards;
