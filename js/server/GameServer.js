@@ -1,14 +1,14 @@
 var Player = require('./Player.js').Player;
 var GameSession = require('./GameSession.js').GameSession;
 var GameState = require('./GameState.js').GameState;
-var Role = require('./Role.js').Role;
+var Roles = require('./Role.js').Roles;
 var Util = require('../Util.js').Util;
 var util = require('util');
 
 
 var GameServer = {
     lastPlayerID: 0,
-    // Map of socket id's to the player id's of the associated players. 
+    // Map of socket id's to the player id's of the associated players.
     // **Duno why have this
     socketToPlayerMap: {},
     // Map of playerId to socket obj
@@ -33,7 +33,7 @@ GameServer.generatePlayerId = function() {
 }
 
 // Map of {socket id, player id}
-GameServer.addPlayerID = function(socketID, playerID) { 
+GameServer.addPlayerID = function(socketID, playerID) {
     GameServer.socketToPlayerMap[socketID] = playerID;
 };
 
@@ -42,7 +42,7 @@ GameServer.getPlayerID = function(socketID) {
 };
 
 // Returns the player corresponding to a specific *socket* ID
-GameServer.getPlayer = function(socketID) { 
+GameServer.getPlayer = function(socketID) {
     return GameServer.players[GameServer.getPlayerID(socketID)];
 };
 
@@ -53,7 +53,7 @@ GameServer.addPlayer = function(playerId, name) {
 }
 
 // remove a socket id/player id mapping
-GameServer.deleteSocketID = function(socketID) { 
+GameServer.deleteSocketID = function(socketID) {
     delete GameServer.socketToPlayerMap[socketID];
 };
 
@@ -77,7 +77,7 @@ GameServer.tryJoinGame = function(playerId, gameId) {
 
 // Returns the game ID
 GameServer.joinOpenGame = function(playerId) {
-    // Maybe better idea is to add player to a queue and server loop will 
+    // Maybe better idea is to add player to a queue and server loop will
     // assign ppl in the queue to open games
     let player = GameServer.players[playerId];
     for (let gameId in GameServer.games) {
@@ -124,24 +124,28 @@ GameServer.getNumGames = function() {
     return Object.keys(GameServer.games).length;
 }
 
+GameServer.getGame = function(gameId) {
+    return GameServer.games[gameId];
+}
+
 // Gets total number of players connected to the server
 GameServer.getNumPlayers = function() {
     return Object.keys(GameServer.players).length;
 }
 
 // check if no other player is using same socket ID
-GameServer.checkSocketID = function(id) { 
+GameServer.checkSocketID = function(id) {
     return (GameServer.getPlayerID(id) === undefined);
 };
 
 // Check if no other player is using same player ID
-GameServer.checkPlayerID = function(id) { 
+GameServer.checkPlayerID = function(id) {
     return (GameServer.players[id] === undefined);
 };
 
 // Data is the data object sent by the client to request the creation of a new player
 GameServer.addNewPlayer = function(socket, data) {
-    if (!data.name || data.name.length == 0) { 
+    if (!data.name || data.name.length == 0) {
         return;
     }
     // Creates a player with client specified name
@@ -176,7 +180,7 @@ GameServer.startGame = function(gameId) {
 
     game.state = GameState.GIVE_ROLES;
     // Now that we've set the number of players, create the deck of role cards
-    game.cards = Role.generateRandomDeck(game.getNumPlayers());
+    game.cards = Roles.generateRandomDeck(game.getNumPlayers());
     console.log("Created card deck for game. gameId: " + gameId + " deck: " + Util.pp(game.cards));
     // Need to send msg to client
     return true;
@@ -201,7 +205,7 @@ GameServer.giveRoleCards = function(gameId) {
 
     let players = game.players;
     //console.log("players: " + util.inspect(players));
-    // Cards should already be shuffled but doesn't hurt to shuffle again    
+    // Cards should already be shuffled but doesn't hurt to shuffle again
     let cards = game.getCopyOfCards();
     Util.shuffle(cards);
     console.log("cards: " + util.inspect(cards));
@@ -211,7 +215,7 @@ GameServer.giveRoleCards = function(gameId) {
     game.forEachPlayer( function(player, index) {
         let card = cards.pop();
         player.roleCard = card;
-        pairings.push({ 
+        pairings.push({
             playerId: player.id,
             roleCard: card
         });
@@ -225,7 +229,7 @@ GameServer.giveRoleCards = function(gameId) {
     console.log("center cards: " + Util.pp(game.centerCards));
 
     Util.shuffle(cards);
-    
+
     // Transition the game to the next state
     game.state = GameState.GET_ROLE_INPUTS;
 
@@ -257,7 +261,7 @@ GameServer.processRoleInputs = function(gameId) {
 GameServer.getPlayerSockets = function(gameId) {
     let sockets = [];
     let game = GameServer.games[gameId];
-    let playerIds = game.getPlayerIds(); 
+    let playerIds = game.getPlayerIds();
     for (let playerId of playerIds) {
         let socket = GameServer.playerToSocketMap[playerId];
         sockets.push({

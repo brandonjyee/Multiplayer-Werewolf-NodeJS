@@ -11,6 +11,12 @@ function GameSession(id) {
     this.processingStateLock = {};
     this.cards = [];
     this.centerCards = [];
+
+    //
+    // this.gameActions = {};
+        /* {
+
+        }*/
 }
 
 GameSession.prototype.constructor = GameSession;
@@ -60,7 +66,7 @@ GameSession.prototype.tryGetProcessingLock = function(state) {
         && this.processingStateLock["locked"] === true) {
         return false;
     }
-    this.processingStateLock = { 
+    this.processingStateLock = {
         state: state,
         locked: true
     };
@@ -103,6 +109,25 @@ GameSession.prototype.getCopyOfCards = function() {
         copyArr.push(card);
     }
     return copyArr;
+}
+
+GameSession.getRoleActions = function() {
+    let actionsArr = [];
+    for (let player of this.players) {
+        actionsArr.push(player.actions);
+    }
+    return actionsArr;
+}
+
+GameSession.roleActionsDone = function() {
+    // Check if all players in the game have done their role action
+    for (let player of this.players) {
+        let done = player.roleActionDone();
+        if (!done) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // GameSession.generateDeck = function(numPlayers, includeCardsArr, excludeCardsArr) {

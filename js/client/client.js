@@ -38,7 +38,7 @@ socket.on('numbers-update', function(randNum) {
     $('#displaynum').text(randNum);
 });
 
-socket.on("server-update", function(serverMsg) {
+socket.on(MsgType.ClientEndpoint.ServerUpdate, function(serverMsg) {
     processServerUpdate(serverMsg);
 });
 
@@ -49,23 +49,23 @@ function processServerUpdate(serverMsg) {
 
     let type = serverMsg.type;
     // console.log("Received server-update. " + pp(serverMsg));
-    if (type === MsgType.Server.GiveClientId) {//"client-id") {
+    if (type === MsgType.Server.GiveClientId) {
         processUpdateClientId(serverMsg);
-    } else if (type === MsgType.Server.GiveGameId) {//"game-session-id") {
+    } else if (type === MsgType.Server.GiveGameId) {
         processUpdateGameId(serverMsg);
     } else if (type === "game-started") {
         // processGameStarted(serverMsg);
         // TODO. Countdown to start. Switch daylight bg to night
-    } else if (type === MsgType.Server.GiveRole) {//"give-role") {
+    } else if (type === MsgType.Server.GiveRole) {
         processUpdateRole(serverMsg);
-    } else if (type === MsgType.Server.AnnouncerMsg) {//"announcer-msg") {
+    } else if (type === MsgType.Server.AnnouncerMsg) {
         processAnnouncerMsg(serverMsg);
-    } else if (type === MsgType.Server.AskDoRoleAction) {//"do-role-action") {
+    } else if (type === MsgType.Server.AskDoRoleAction) {
         processDoRoleAction(serverMsg);
     } else if (type === "error-msg") {
         processErrorMsg(serverMsg);
     }
-    else if (type === MsgType.Server.GiveStats) {//"stats") {
+    else if (type === MsgType.Server.GiveStats) {
         processGameStats(serverMsg);
     }
     else {
@@ -195,24 +195,26 @@ $("#clear-local-data").click( function() {
 
 $("#connect-to-server").click( function() {
     console.log("connect to server button clicked.");
-    let clientMsg = createClientMsg("client-id");
-    clientMsg["playerName"] = $("#client-name").val();
-    socket.emit("ask-server", clientMsg);
+    let clientMsg = createClientMsg(MsgType.Client.AskClientId);
+    clientMsg.playerName = $("#client-name").val();
+    sendToServer(clientMsg);
 });
 
 $("#join-game").click( function() {
-    let clientMsg = createClientMsg("game-id");
-    socket.emit("ask-server", clientMsg);
+    let clientMsg = createClientMsg(MsgType.Client.AskGameId);
+    sendToServer(clientMsg);
 });
 
 $("#start-game").click( function() {
-    let clientMsg = createClientMsg("start-game");
-    socket.emit("ask-server", clientMsg);
+    let clientMsg = createClientMsg(MsgType.Client.AskStartGame);
+    sendToServer(clientMsg);
 });
 
 $("#do-game-action").click( function() {
-    let clientMsg = createClientMsg("did-role-action");
-    socket.emit("ask-server", clientMsg);
+    let clientMsg = createClientMsg(MsgType.Client.DidRoleAction);
+    sendToServer(clientMsg);
+    // After clicking the button, disable it
+    $("#do-game-action").prop("disabled", true);
 });
 
 // Create the client msg to send to server
@@ -272,4 +274,8 @@ function getOtherPlayerIds() {
 function printPlayerMap() {
     console.log("Printing playerMap: ");
     console.log(Util.pp(playerIdMap));
+}
+
+function sendToServer(clientMsg) {
+    socket.emit(MsgType.ServerEndpoint.AskServer, clientMsg);
 }
