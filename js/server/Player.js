@@ -3,10 +3,12 @@ var GameServer = require('./GameServer.js').GameServer;
 function Player(name) {
   this.id = '';
   this.name = name;
-  this.avatar = null;
+  this.avatarUrl = null;
+
+  // Data specific to a particular game session
   this.gameSession = null;
   this.roleCard = null;
-  this.actions = null;
+  this.actions = {};
   /* {
             roleAction: <role-action-data>
             voteToKill: <vote-data>
@@ -40,7 +42,10 @@ Player.prototype.getName = function() {
 
 Player.prototype.roleActionDone = function() {
   // Returns whether player has done their role action
-  return !!this.actions.roleAction;
+  if (this.actions) {
+      return !!this.actions.roleAction;
+  }
+  return false;
 };
 
 module.exports.Player = Player;

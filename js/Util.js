@@ -1,3 +1,7 @@
+// if (typeof window === 'undefined') {
+//     var util = require('util');
+// }
+
 var Util = {};
 
 // Returns a random integer from 0 to (max - 1)
@@ -15,7 +19,10 @@ Util.removeElemFromArr = function(arr, elem) {
 
 // Pretty print an object
 Util.pp = function(obj) {
+    // stringify doesn't work on objects with circular refs
     return JSON.stringify(obj, undefined, 2);
+    // return util.inspect(obj, false, null);
+    // return Object.inspect(obj, false, null);
 };
 
 // Return a uuid

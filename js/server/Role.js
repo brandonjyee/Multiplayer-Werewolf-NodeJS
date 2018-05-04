@@ -3,16 +3,21 @@ var Util = require('../Util.js').Util;
 function Role(name) {
   this.name = name;
   this.action = '';
-
-  this.processRoleAction = function(gameServer, clientMsg) {};
-
-  // Returns whether player has done their role action
-  this.roleActionDone = function(player) {
-      return !!player.actions.roleAction;
-  };
 }
 
 Role.prototype.constructor = Role;
+Role.prototype.processRoleAction = function(gameServer, clientMsg) {
+    console.log(
+      'Default processRoleAction method. clientMsg: ' + Util.pp(clientMsg)
+    );
+    let clientId = clientMsg.clientId;
+    let actionData = clientMsg.actionData;
+    let player = gameServer.players[clientId];
+
+    if (!player.actions.roleAction) {
+        player.actions.roleAction = actionData;
+    }
+};
 
 // Map of role name to Role obj
 Roles = {};
@@ -25,14 +30,17 @@ WEREWOLF.processRoleAction = function(gameServer, clientMsg) {
   // Usually Werewolves don't do anything. Just look at each other.
   // If only one werewolf then can view one center card
   // ** New id for cards, esp for center cards
-  let clientId = clientMsg.clientId;
-  let gameId = clientMsg.gameId;
-  let actionData = clientMsg.actionData;
+//   let clientId = clientMsg.clientId;
+//   let gameId = clientMsg.gameId;
+//   let actionData = clientMsg.actionData;
 
-  let player = gs.players[clientId];
+//   let player = gameServer.players[clientId];
 
-  player.actions.roleAction = actionData;
-  console.log('set werewolf data. playerId: ' + clientId + ' actionData: ' + actionData);
+//   player.actions.roleAction = actionData;
+    Role.prototype.processRoleAction.call(this, gameServer, clientMsg);
+  console.log(
+    'set werewolf data. playerId: ' + clientId + ' actionData: ' + actionData
+  );
 };
 Roles[WEREWOLF.name] = WEREWOLF;
 
@@ -48,14 +56,15 @@ SEER.processRoleAction = function(gameServer, clientMsg) {
   let actionData = clientMsg.actionData;
 
   // *** Check if client packet has valid info
-  let game = gs.games[gameId];
-  let player = gs.players[clientId];
+  let game = gameServer.games[gameId];
+  let player = gameServer.players[clientId];
 
-  // Check validity
+  // Check action validity
   if (actionData === 'center' || game.hasPlayer(actionData)) {
     // It's a valid input
     // Return results to user
-    player.actions.roleAction = actionData;
+    // player.actions.roleAction = actionData;
+    Role.prototype.processRoleAction.call(this, gameServer, clientMsg);
     console.log(
       'set seer data. playerId: ' + clientId + ' actionData: ' + actionData
     );
@@ -72,14 +81,15 @@ ROBBER.action =
   "Exchange your card with another player's card. View your new card.";
 ROBBER.processRoleAction = function(gameServer, clientMsg) {
   // Selected either another player or two center cards. Should cards have Ids?
-  let clientId = clientMsg.clientId;
-  let gameId = clientMsg.gameId;
-  let roleCard = clientMsg.roleCard;
-  let actionData = clientMsg.actionData;
+//   let clientId = clientMsg.clientId;
+//   let gameId = clientMsg.gameId;
+//   let roleCard = clientMsg.roleCard;
+//   let actionData = clientMsg.actionData;
 
-  // *** Check if client packet has valid info
-  let game = gs.games[gameId];
-  let player = gs.players[clientId];
+//   // *** Check if client packet has valid info
+//   let game = gameServer.games[gameId];
+//   let player = gameServer.players[clientId];
+    Role.prototype.processRoleAction.call(this, gameServer, clientMsg);
 };
 Roles[ROBBER.name] = ROBBER;
 

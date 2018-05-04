@@ -12,12 +12,13 @@ if (typeof(Storage) === "undefined") {
 let socket = io();
 
 // Check existing session storage for data.
-let clientId = sessionStorage.getItem("client-id");
-let gameSessionId = sessionStorage.getItem("game-session-id");
+let thisPlayer = new ThisPlayer();
+thisPlayer.loadFromSession();
+// Players.setPlayer(thisPlayer);
 
 // Map of playerId to an obj containing info related to player:
 // profile-pic, player number, etc
-var playerIdMap = {};
+// var playerIdMap = {};
 
 // playerIdMap["test-id"] = {
 //     playerName: "testName",
@@ -74,34 +75,27 @@ function processServerUpdate(serverMsg) {
 }
 
 function processUpdateClientId(serverMsg) {
-    clientId = serverMsg.data;
-    // Store it in session storage
-    sessionStorage.setItem("client-id", clientId);
+    let playerId = serverMsg.data;
+    thisPlayer.updatePlayerId(playerId);
+    Players.setPlayer(thisPlayer, playerId);
     // Display it
-    $(".client-id").text(clientId);
-
-    // Randomly select a profile-pic for this player
-    let picUrl = trySetRandomAvatar(clientId);
-    $(".player-pic").css("content", "url(" + picUrl + ")");
+    $(".client-id").text(playerId);
 }
 
-
-
 function processUpdateGameId(serverMsg) {
-    let gameSessionId = serverMsg.data;
-    console.log("received game session id from server: " + gameSessionId);
-    sessionStorage.setItem("game-session-id", gameSessionId);
-    $(".game-session-id").text(gameSessionId);
+    let gameId = serverMsg.data;
+    console.log("received game session id from server: " + gameId);
+    thisPlayer.updateGameId(gameId);
+    $(".game-session-id").text(gameId);
 }
 
 function processUpdateRole(serverMsg) {
     let roleCard = serverMsg.data;
-    sessionStorage.setItem("role-card", roleCard);
+    thisPlayer.updateRoleCard(roleCard);
     $(".role-card").text(roleCard);
     // Update role card bg
     console.log("roleCard: " + roleCard);
-    let imgUrl = RoleMap[roleCard].getImgUrl();
-    imgUrl = "url(" + imgUrl + ")";
+    let imgUrl = RoleMap[roleCard].getImgUrlForCSS();
     $("img.role-card-img").css("content", imgUrl);
 
     // Also change daylight bg to night bg. This should be changed later.
@@ -110,23 +104,20 @@ function processUpdateRole(serverMsg) {
 
 function processAnnouncerMsg(serverMsg) {
     let newMsg = serverMsg.data;
-    // let currentMsgs = $(".announcer-msgs").text;
     $(".announcer-msgs").prepend(newMsg);
 }
 
 function processDoRoleAction(serverMsg) {
     let roleStr = serverMsg.role;
     let role = RoleMap[roleStr];
-    //let playerInstructions = serverMsg.playerInstructions;
     let data = serverMsg.data;
 
     $(".role-instructions").text(role.instructions);
     $(".role-data").text(data);
 
-    printPlayerMap();
+    Players.print();
     console.log("Displaying action choices for role: " + roleStr);
     role.displayActionChoices(data);
-
 }
 
 function processErrorMsg(serverMsg) {
@@ -137,49 +128,31 @@ function processErrorMsg(serverMsg) {
 function processGameStats(serverMsg) {
     let stats = serverMsg.data;
     let playerName = stats["playerName"];
-    let clientId = stats["clientId"];
+    let playerId = stats["clientId"];
+    let avatarUrl = stats["avatarUrl"];
     let gameId = stats["gameId"];
+
     let numPlayers = stats["numPlayers"];
     let gameState = stats["gameState"];
     let roleCard = stats["roleCard"];
     let allCards = stats["allCards"];
     let playersInGame = stats["playersInGame"];
 
-    if (clientId) { $(".client-id").text(clientId); }
+    if (playerId) {
+        Players.setPlayer(thisPlayer, playerId);
+        $(".client-id").text(playerId);
+    }
+    if (avatarUrl && avatarUrl !== thisPlayer.avatarUrl) {
+        thisPlayer.updateAvatarUrl(avatarUrl);
+        $(".player-pic").css("content", "url(" + avatarUrl + ")");
+    }
     if (gameId) { $(".game-session-id").text(gameId); }
     if (numPlayers) { $(".num-players-in-game").text(numPlayers); }
     if (gameState) { $(".game-state").text(gameState); }
     if (roleCard) { $(".role-card").text(roleCard); }
     if (allCards) { $(".all-cards").text(allCards.join("|")); }
     if (playersInGame) {
-        // Check if player is new or already registered with the client
-        for (let somePlayerObj of playersInGame) {
-            // let somePlayerId = somePlayerObj["playerId"];
-            // let localPlayerObj = playerIdMap[somePlayerId];
-            // if (!localPlayerObj) {
-            //     // Register the player with the client
-            //     playerIdMap[somePlayerId] = {
-            //         playerId: somePlayerId,
-            //         playerName: somePlayerObj["playerName"]
-            //     };
-            //     let picUrl = trySetRandomAvatar(somePlayerId);
-            // }
-            // let somePlayerName = somePlayerObj.playerName;
-            let somePlayerId = somePlayerObj.playerId;
-            playerIdMap[somePlayerId] = somePlayerObj;
-            // console.log("setting playerIdMap. playerId: " + somePlayerId + " obj: " + Util.pp(somePlayerObj));
-            // console.log("playerIdMap[id]: " + Util.pp(playerIdMap[somePlayerId]));
-            // printPlayerMap();
-
-            let allplayers = getAllPlayers();
-            console.log("allplayers: " + Util.pp(allplayers));
-            let allplayerIds = getAllPlayerIds();
-            console.log("allplayerIds: " + Util.pp(allplayerIds));
-            let otherPlayerIds = getOtherPlayerIds();
-            console.log("otherPlayerIds: " + Util.pp(otherPlayerIds));
-            printPlayerMap();
-        }
-
+        Players.setPlayersFromServerStats(playersInGame);
     }
 }
 
@@ -190,7 +163,8 @@ function updateServerMsgBox(anyVal) {
 }
 
 $("#clear-local-data").click( function() {
-    sessionStorage.clear();
+    Players.clear();
+    thisPlayer.clear();
 });
 
 $("#connect-to-server").click( function() {
@@ -202,6 +176,7 @@ $("#connect-to-server").click( function() {
 
 $("#join-game").click( function() {
     let clientMsg = createClientMsg(MsgType.Client.AskGameId);
+    console.log("msg for game-id: " + Util.pp(clientMsg));
     sendToServer(clientMsg);
 });
 
@@ -211,69 +186,39 @@ $("#start-game").click( function() {
 });
 
 $("#do-game-action").click( function() {
-    let clientMsg = createClientMsg(MsgType.Client.DidRoleAction);
-    sendToServer(clientMsg);
+    // let playerObj = //playerIdMap[clientId];
+    let role = RoleMap[thisPlayer.roleCard]; //playerObj[];
+    role.lockInChoice();
+
     // After clicking the button, disable it
-    $("#do-game-action").prop("disabled", true);
+    //$("#do-game-action").prop("disabled", true);
 });
 
 // Create the client msg to send to server
 function createClientMsg(request) {
-    return {
-        clientId: sessionStorage.getItem("client-id"),
-        gameSessionId: sessionStorage.getItem("game-session-id"),
+    // If clientId isn't in the cache, check session storage
+    let playerId = thisPlayer.playerId;
+    let gameId = thisPlayer.gameId;
+
+    if (!playerId) {
+        playerId = sessionStorage.getItem("clientId");
+    }
+    if (!gameId) {
+        gameId = sessionStorage.getItem("gameId");
+    }
+
+    let msg = {
+        clientId: playerId,
+        gameSessionId: gameId,
         request: request
     };
-}
 
-function getRandomAvatarUrl() {
-    let randPicNum = Util.randInt(17) + 1;
-    let picUrl = "assets/avatars/profile-" + randPicNum + ".png";
-    return picUrl;
-}
-
-// Generates a new avatar url for the playerId if there isn't an existing one
-function trySetRandomAvatar(playerId) {
-    let playerObj = playerIdMap[playerId];
-    if (!playerObj) {
-        playerObj = {};
+    if (thisPlayer) {
+        msg.avatarUrl = thisPlayer.avatarUrl;
+        msg.roleCard = thisPlayer.roleCard;
     }
-    if (!playerObj.profileUrl) {
-        let picUrl = getRandomAvatarUrl();
-        playerObj.profileUrl = picUrl;
-    }
-    playerIdMap[playerId] = playerObj;
-    return playerObj.profileUrl;
-}
-
-// Returns list of players in game
-function getAllPlayers() {
-    let retArr = [];
-    let playerIds = getAllPlayerIds();
-    for (let playerId of playerIds) {
-        retArr.push(playerIdMap[playerId]);
-    }
-    return retArr;
-}
-
-function getAllPlayerIds() {
-    let playerIds = Object.keys(playerIdMap);
-    return playerIds;
-}
-
-function getOtherPlayerIds() {
-    let mapCopy = Object.assign({}, playerIdMap);
-    // console.log("mapCopy: " + Util.pp(mapCopy));
-    delete mapCopy[clientId];
-    // console.log("mapCopy after delete: " + Util.pp(mapCopy));
-    let keys = Object.keys(mapCopy);
-    // console.log("mapCopy keys: " + keys);
-    return Object.keys(mapCopy);
-}
-
-function printPlayerMap() {
-    console.log("Printing playerMap: ");
-    console.log(Util.pp(playerIdMap));
+    console.log("In createClientMsg. clientId " + playerId + " thisPlayer: "+ thisPlayer.toString() + " clientMsg: " + Util.pp(msg));
+    return msg;
 }
 
 function sendToServer(clientMsg) {

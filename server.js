@@ -116,10 +116,17 @@ function createServerMsg(type, data) {
     };
 }
 
+function getRandomAvatarUrl() {
+    let randPicNum = Util.randInt(17) + 1;
+    let picUrl = "assets/avatars/profile-" + randPicNum + ".png";
+    return picUrl;
+}
+
 function processAskClientId(socket, clientMsg) {
     console.log("client asked for client id. Param: " + Util.pp(clientMsg));
     let playerName = clientMsg.playerName;
     let playerId = clientMsg.clientId;
+
     if (!playerId) {
         playerId = gs.generatePlayerId();
     }
@@ -127,10 +134,19 @@ function processAskClientId(socket, clientMsg) {
     gs.socketToPlayerMap[socket.id] = playerId;
     gs.playerToSocketMap[playerId] = socket;
     // Generate a Player object to represent the player
-    gs.addPlayer(playerId, playerName);
+    let player = gs.addPlayer(playerId, playerName);
+
+    // Set a random avatar for the player
+    player.avatarUrl = getRandomAvatarUrl();
+    // console.log("player.avatarUrl: " + player.avatarUrl);
+
     // Send id to client
     let serverMsg = createServerMsg(MsgType.Server.GiveClientId, playerId);
     sendToClient(playerId, serverMsg);
+
+    // Send all stats for client so far. That way client code for updating
+    // its cache can be all in one event listener
+    sendPlayerStats(playerId)
 }
 
 function processAskGameId(clientMsg) {
@@ -140,7 +156,7 @@ function processAskGameId(clientMsg) {
     let gameSessionId = clientMsg.gameSessionId;
     let joined = false;
     // If client has provided a gameId they'd like to join, attempt to join that game
-    if (!!gameSessionId) {
+    if (gameSessionId) {
         joined = gs.tryJoinGame(clientId, gameSessionId);
         if (!joined) {
             console.log("Failed to join existing game. Need to join new game.");
@@ -198,7 +214,7 @@ function giveRolesFn(gameId) {
         }
 
         // Schedule for game to handle the players doing their role action
-        setTimeout(getRoleInputsFn(gameId), secToMs(4));
+        setTimeout(getRoleInputsFn(gameId), secToMs(3));
     }
     return fn;
 }
@@ -220,10 +236,10 @@ var getRoleInputsFn = function(gameId) {
             let data = "";
             let role = player.roleCard;
             if (role === Roles.werewolf) {
-                console.log("role is werewolf. playerId: " + player.id);
+                // console.log("role is werewolf. playerId: " + player.id);
                 // Get playerIds in game that have werewolf card
                 let werewolfIds = game.getPlayersWithRole(Roles.werewolf);
-                console.log("players who are werewolves: " + Util.pp(werewolfIds));
+                // console.log("players who are werewolves: " + Util.pp(werewolfIds));
                 data = werewolfIds;
             }
             serverMsg = createServerMsg(MsgType.Server.AskDoRoleAction, data);
@@ -232,8 +248,9 @@ var getRoleInputsFn = function(gameId) {
 
             sendToClient(player.id, serverMsg);
         });
-        // Schedule for game to check and process all players' role actions
-        //setTimeout(processAllRoleActionsFn(gameId), secToMs(8));
+        // Schedule for game to check if all players have completed their
+        // role actions. If so, process them and show the results
+        setTimeout(processAllRoleActionsFn(gameId), secToMs(4));
 
     };
     return fn;
@@ -242,13 +259,26 @@ var getRoleInputsFn = function(gameId) {
 // TODO
 var processAllRoleActionsFn = function(gameId) {
     return function() {
+        console.log("In processAllRoleActionsFn.");
+        let game = gs.games[gameId];
+        // If not all players have completed their role action, check again later
+        if (!game.allRoleActionsDone()) {
+            console.log("rescheduling processAllRoleActionsFn to run again");
+            setTimeout(processAllRoleActionsFn(gameId), secToMs(4));
+            return;
+        }
 
+        let result = gs.processRoleInputs(gameId);
+
+        // All players have completed their actions. Get processingLock
+        // game.tryGetProcessingLock(GameState.SHOW_ACTION_RESULT);
     };
 }
 
 // *** Need to know when all players have completed their action. Might be time-based thing.
 // Can also do a flag check?
 function processRoleInput(clientMsg) {
+    console.log("In processRoleInput. clientMsg: " + Util.pp(clientMsg));
     let clientId = clientMsg.clientId;
     let gameId = clientMsg.gameId;
     let roleCard = clientMsg.roleCard;
@@ -261,8 +291,9 @@ function processRoleInput(clientMsg) {
     let roleObj = Roles[roleCard];
     if (roleObj) {
         roleObj.processRoleAction(gs, clientMsg);
+        console.log("processed role input. player: " + Object.inspect(player));
     } else {
-        console.error("Unknown roleCard: " + roleCard);
+        console.error("In processRoleInput. Unknown roleCard: " + roleCard);
     }
     // Check if all players have completed their role action. If so, set the next phase to start
     // Next phase is: SHOW_ACTION_RESULT
@@ -302,6 +333,8 @@ function createPlayerGameStatsData(clientId) {
     }
     stats["clientId"] = clientId;
     stats["playerName"] = player.name;
+    stats["avatarUrl"] = player.avatarUrl;
+    // console.log("in create stats data. player.avatarUrl: " + player.avatarUrl);
 
     let game = player.gameSession;
     if (!game) {

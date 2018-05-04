@@ -7,9 +7,12 @@ function Role(name) {
     this.getImgUrl = function() {
         return this.imgDir + this.imgFile;
     };
+    this.getImgUrlForCSS = function() {
+        return "url(" + this.getImgUrl() + ")";
+    };
     this.displayActionChoices = function(data) {};
     // Roles that have choice: robber, troublemaker, seer
-    this.lockInChoice = function(socket) {};
+    this.lockInChoice = function() {};
 }
 
 Role.prototype.constructor = Role;
@@ -27,14 +30,14 @@ Werewolf.displayActionChoices = function(data) {
     console.log("displaying action choices for werewolves");
     let playerIdsArr = data;
     // Remove self from the array
-    Util.removeElemFromArr(playerIdsArr, clientId);
+    Util.removeElemFromArr(playerIdsArr, thisPlayer.playerId);
     let html = "<span class='display'>";
     if (playerIdsArr.length === 0) {
         html = "...You are the only werewolf. You may look at a card from the center.";
     }
     for (let werewolfId of playerIdsArr) {
         html += "<input class='display' type='radio' value='" + werewolfId + "' disabled>";
-        html += playerIdMap[werewolfId].playerName;
+        html += Players.getPlayer(werewolfId).name;
         html += "</input><br>";
         //html += "<img class='player-img' src='/assets/avatars/profile-locked.png'></img>";
     }
@@ -62,10 +65,17 @@ Robber.instructions = "ROBBER, wake up. You may exchange your card with another 
 Robber.displayActionChoices = function(data) {
     console.log("displaying action choices for robber");
     let html = "<form id='action-form' class='display'>";
-    let otherPlayerIds = getOtherPlayerIds();
+    let otherPlayerIds = Players.getOtherPlayerIds(thisPlayer.playerId);
+    let first = true;
     for (let otherPlayerId of otherPlayerIds) {
-        html += "<input name='robber-choice' type='radio' value='" + otherPlayerId + "'>"
-        html += playerIdMap[otherPlayerId].playerName;
+        html += "<input name='robber-choice' type='radio' value='" + otherPlayerId + "'";
+        if (first) {
+            html += " checked='checked'>";
+            first = false;
+        } else {
+            html += ">";
+        }
+        html += Players.getPlayer(otherPlayerId).name;
         html += "</input><br>";
         // html += "<img class='player-img' src='/assets/avatars/profile-locked.png'></img>";
     }
@@ -76,9 +86,12 @@ Robber.displayActionChoices = function(data) {
     // Enable the button
     $("#do-game-action").show();
 };
-Robber.lockInChoice = function(socket) {
-    $("")
-    socket.emit("", msg);
+Robber.lockInChoice = function() {
+    let selPlayerId = $("input[name=robber-choice]:checked", "#action-form").val();
+    console.log("selVal: " + selPlayerId);
+    let clientMsg = createClientMsg(MsgType.Client.DidRoleAction);
+    clientMsg.action = selPlayerId;
+    sendToServer(clientMsg);
 };
 RoleMap[Robber.name] = Robber;
 
@@ -90,7 +103,7 @@ Troublemaker.instructions = "TROUBLEMAKER, wake up. You may exchange cards betwe
 Troublemaker.displayActionChoices = function(data) {
     console.log("displaying action choices for troublemaker");
     let html = "<form id='troublemaker-action-form' class='display'>";
-    let otherPlayerIds = getOtherPlayerIds();
+    let otherPlayerIds = Players.getOtherPlayerIds(thisPlayer.playerId);
     let count = 0;
     for (let otherPlayerId of otherPlayerIds) {
         html += "<input name='troublemaker-choice' type='checkbox' value='" + otherPlayerId + "'";
@@ -100,7 +113,7 @@ Troublemaker.displayActionChoices = function(data) {
         } else {
             html += ">";
         }
-        html += playerIdMap[otherPlayerId].playerName;
+        html += Players.getPlayer(otherPlayerId).name;
         html += "</input><br>";
         // html += "<img class='player-img' src='/assets/avatars/profile-locked.png'></img>";
     }
@@ -127,7 +140,7 @@ Troublemaker.lockInChoice = function() {
     // let selPlayerIds = $("input[name=seer-choice]:checked"), "#action-form").val();
     console.log("selVal: " + Util.pp(selPlayerIds));
     let clientMsg = createClientMsg(MsgType.Client.DidRoleAction);
-    clientMsg.action = selPlayerId;
+    clientMsg.action = selPlayerIds;
     sendToServer(clientMsg);
 }
 RoleMap[Troublemaker.name] = Troublemaker;
@@ -140,7 +153,7 @@ Seer.instructions = "SEER, wake up. You may look at another player's card or two
 Seer.displayActionChoices = function(data) {
     console.log("displaying action choices for seer");
     let html = "<form id='action-form' class='display'>";
-    let otherPlayerIds = getOtherPlayerIds();
+    let otherPlayerIds = Players.getOtherPlayerIds(thisPlayer.playerId);
     let first = true;
     for (let otherPlayerId of otherPlayerIds) {
         html += "<input name='seer-choice' class='display' type='radio' value='" + otherPlayerId + "'";
@@ -150,7 +163,7 @@ Seer.displayActionChoices = function(data) {
         } else {
             html += ">";
         }
-        html += playerIdMap[otherPlayerId].playerName;
+        html += Players.getPlayer(otherPlayerId).name;
         html += "</input><br>";
         // html += "<img class='player-img' src='/assets/avatars/profile-locked.png'></img>";
     }

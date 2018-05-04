@@ -32,7 +32,8 @@ GameSession.prototype.getPlayerData_Basic = function() {
     for (let player of players) {
         retArr.push({
             playerName: player.getName(),
-            playerId: player.getId()
+            playerId: player.getId(),
+            avatarUrl: player.avatarUrl
         });
     }
     return retArr;
@@ -111,7 +112,7 @@ GameSession.prototype.getCopyOfCards = function() {
     return copyArr;
 }
 
-GameSession.getRoleActions = function() {
+GameSession.prototype.getRoleActions = function() {
     let actionsArr = [];
     for (let player of this.players) {
         actionsArr.push(player.actions);
@@ -119,19 +120,13 @@ GameSession.getRoleActions = function() {
     return actionsArr;
 }
 
-GameSession.roleActionsDone = function() {
+GameSession.prototype.allRoleActionsDone = function() {
     // Check if all players in the game have done their role action
-    for (let player of this.players) {
-        let done = player.roleActionDone();
-        if (!done) {
-            return false;
-        }
-    }
-    return true;
+    let result = true;
+    this.forEachPlayer(function(player, index) {
+        result = result && player.roleActionDone();
+    })
+    return result;
 }
-
-// GameSession.generateDeck = function(numPlayers, includeCardsArr, excludeCardsArr) {
-//     // TODO
-// }
 
 module.exports.GameSession = GameSession;
