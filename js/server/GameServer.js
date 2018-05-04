@@ -42,15 +42,20 @@ GameServer.getPlayerID = function(socketID) {
 };
 
 // Returns the player corresponding to a specific *socket* ID
-GameServer.getPlayer = function(socketID) {
-    return GameServer.players[GameServer.getPlayerID(socketID)];
-};
+// GameServer.getPlayer = function(socketID) {
+//     return GameServer.players[GameServer.getPlayerID(socketID)];
+// };
 
 GameServer.addPlayer = function(playerId, name) {
     let newPlayer = new Player(name);
     newPlayer.id = playerId;
     GameServer.players[playerId] = newPlayer;
+    return newPlayer;
 }
+
+GameServer.getPlayerById = function(playerID) {
+    return GameServer.players[playerID];
+};
 
 // remove a socket id/player id mapping
 GameServer.deleteSocketID = function(socketID) {
