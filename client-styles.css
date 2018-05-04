@@ -1,0 +1,140 @@
+/* Start with clean layout */
+html, body {
+    margin: 0px;
+    padding: 0px;
+    border: 0px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.column {
+    float: left;
+    width: 33.33%;
+    /* border-width: medium; */
+    height: 560px;
+    padding: 7px;
+    border: 1px solid gray;
+    overflow: auto;
+}
+
+/* Clear floats after the columns */
+.row:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* Stretch the bg image to fill screen and reduce opacity */
+#bg-image {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background-image: url("assets/title-screen-2.jpg");
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: 100%;
+    opacity: .3;
+    filter:alpha(opacity=80);
+    z-index: -10;
+}
+
+#stats-box {
+    background-color: white;
+    height: 100%;
+    opacity: .7;
+}
+
+#bg-role-card {
+    position: fixed;
+    top: 40%;
+    left: 40%;
+    height: 210px;
+    width: 150px;
+    /* background-image: url("assets/roles/robber.png"); */
+    background-repeat: no-repeat;
+    background-size: 100%;
+    opacity: .8;
+    z-index: -5;
+}
+
+img.player-pic {
+    height: 50px;
+    width: auto;
+    content: url("assets/avatars/profile-locked.png");
+}
+
+img.role-card-img {
+    height: 100px;
+    width: auto;
+    content: url("assets/roles/card-back.png");
+    /* content: url("assets/avatars/profile-locked.png"); */
+    opacity: .8;
+}
+
+#game-header .bg {
+    height: 100px;
+    width: 100%;
+    content: url("assets/daytime-1.png");
+}
+
+#game-container {
+    /* position: fixed; */
+    /* top: 20%;
+    left: 20%; */
+    height: 100%;
+    /* width: 400px; */
+    /* background-image: url("assets/game-board-web.png"); */
+    /*background-repeat: no-repeat;*/
+    /* background-size: 100%; */
+    opacity: 1;
+}
+
+/* Clear floats after the columns */
+#game-container:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+#players-col-1 {
+    float: left;
+    width: 20%;
+    text-align: center;
+}
+
+#game-center-col {
+    float: left;
+    width: 60%;
+    text-align: center;
+}
+
+#players-col-2 {
+    float: left;
+    width: 20%;
+    text-align: center;
+}
+
+img.player-img {
+    height: 50px;
+    width: auto;
+    content: url("assets/avatars/profile-locked.png");
+}
+
+.display {
+    background-color: #ccff99;
+}
+
+.header {
+    font-weight: bold;
+}
+
+.server-msgs {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #ccc;
+    overflow: auto;
+}

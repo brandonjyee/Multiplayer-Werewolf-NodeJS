@@ -1,0 +1,28 @@
+<html>
+
+<head>
+    <title>Ultimate Werewolf - Admin Panel</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    
+    <script>
+        $(function () { 
+            // Create web socket connection
+            let socket = io();
+
+            socket.on("server-stats", function(serverMsg) {
+                let keys = Object.keys(serverMsg);
+                let displayArr = [];
+                for (key of keys) {
+                    displayArr.push(`${key}: ${serverMsg[key]}`);
+                }
+                $("#server-stats").text(displayArr.join("<br>"));
+            });
+        });
+    </script>
+</head>
+<body>
+<span id="server-stats"></span>
+</body>
+</html>
